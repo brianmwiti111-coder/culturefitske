@@ -104,7 +104,7 @@ const DEFAULT_PRODUCTS = (() => {
   return list;
 })();
 
-const CUSTOM_FEE = 300;
+const DEFAULT_CUSTOM_FEE = 300; // starting value; admin can change this from Settings
 
 // ---------------------------------------------------------------
 // JERSEY GRAPHIC (signature element — every kit is drawn, not photographed,
@@ -475,7 +475,7 @@ function Header({ view, setView, cartCount, wishlistCount, isAdmin, setIsAdmin }
 // ---------------------------------------------------------------
 // HOME VIEW
 // ---------------------------------------------------------------
-function Home({ setView, openProduct, wishlist, toggleWishlist, products }) {
+function Home({ setView, openProduct, wishlist, toggleWishlist, products, customizationFee }) {
   return (
     <div>
       {/* HERO */}
@@ -551,7 +551,7 @@ function Home({ setView, openProduct, wishlist, toggleWishlist, products }) {
       <section style={{ background: C.bgRaise, borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
         <div className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
           <div>
-            <Badge tone="red">+ KSh {CUSTOM_FEE} add-on</Badge>
+            <Badge tone="red">+ KSh {customizationFee} add-on</Badge>
             <h3 style={{ fontFamily: FONT_DISPLAY, fontSize: 32, color: C.white, textTransform: "uppercase", margin: "14px 0" }}>
               Make it <span style={{ color: C.gold }}>Yours</span>
             </h3>
@@ -679,7 +679,7 @@ function Shop({ openProduct, wishlist, toggleWishlist, products }) {
 // ---------------------------------------------------------------
 // PRODUCT DETAIL VIEW
 // ---------------------------------------------------------------
-function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist }) {
+function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, customizationFee }) {
   const [size, setSize] = useState("M");
   const [sleeve, setSleeve] = useState("Short");
   const [customize, setCustomize] = useState(false);
@@ -702,7 +702,7 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist }
   const stockKey = `${size}-${sleeve}`;
   const stockLeft = product.stock[stockKey] ?? 0;
   const liked = wishlist.includes(product.id);
-  const total = product.price + (customize ? CUSTOM_FEE : 0);
+  const total = product.price + (customize ? customizationFee : 0);
   const hasPhotos = product.photos && product.photos.length > 0;
 
   const handleAdd = () => {
@@ -813,7 +813,7 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist }
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={customize} onChange={(e) => setCustomize(e.target.checked)} style={{ width: 18, height: 18, accentColor: C.gold }} />
               <span style={{ fontFamily: FONT_BODY, fontWeight: 700, color: C.white, fontSize: 14 }}>
-                Add name & number customization <span style={{ color: C.gold }}>(+KSh {CUSTOM_FEE})</span>
+                Add name & number customization <span style={{ color: C.gold }}>(+KSh {customizationFee})</span>
               </span>
             </label>
 
@@ -976,7 +976,7 @@ function Wishlist({ wishlist, toggleWishlist, openProduct, products }) {
 // ---------------------------------------------------------------
 // CHECKOUT VIEW
 // ---------------------------------------------------------------
-function Checkout({ cart, setView, placeOrder }) {
+function Checkout({ cart, setView, placeOrder, paybillNumber, paybillAccountNote }) {
   const [form, setForm] = useState({ name: "", phone: "", location: "", notes: "" });
   const [payment, setPayment] = useState("mpesa");
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
@@ -1014,6 +1014,33 @@ function Checkout({ cart, setView, placeOrder }) {
             }}>{m.label}</button>
           ))}
         </div>
+
+        {payment === "mpesa" && (
+          <div style={{ background: C.bgCard, border: `1px solid ${C.gold}`, borderRadius: 8, padding: 16, marginTop: 12 }}>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Pay via M-Pesa Paybill</div>
+            {paybillNumber ? (
+              <>
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute }}>Paybill Number</div>
+                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: C.gold, letterSpacing: "0.04em" }}>{paybillNumber}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute }}>Account Number</div>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.white }}>{paybillAccountNote || "Your order number"}</div>
+                  </div>
+                </div>
+                <p style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginTop: 10, marginBottom: 0 }}>
+                  We'll confirm your final total (including delivery) before you pay — use your order number as the account reference so we can match your payment.
+                </p>
+              </>
+            ) : (
+              <p style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, margin: 0 }}>
+                Paybill details will be confirmed with you on WhatsApp along with your final total.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 20, marginBottom: 20 }}>
@@ -1045,7 +1072,7 @@ function Field({ label, value, onChange, placeholder }) {
 // ---------------------------------------------------------------
 // ORDER CONFIRMATION
 // ---------------------------------------------------------------
-function OrderConfirmed({ setView }) {
+function OrderConfirmed({ setView, paybillNumber, paybillAccountNote }) {
   return (
     <div className="max-w-lg mx-auto px-5 py-24 text-center">
       <div style={{ width: 64, height: 64, borderRadius: 999, background: "rgba(217,169,78,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
@@ -1056,6 +1083,21 @@ function OrderConfirmed({ setView }) {
         We're reviewing your order and will message you on WhatsApp shortly with
         the delivery fee and final total to confirm before payment.
       </p>
+      {paybillNumber && (
+        <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 16, marginBottom: 24, textAlign: "left" }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>If paying by M-Pesa Paybill</div>
+          <div className="flex items-center gap-6 flex-wrap">
+            <div>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute }}>Paybill Number</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: C.gold }}>{paybillNumber}</div>
+            </div>
+            <div>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute }}>Account Number</div>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.white }}>{paybillAccountNote || "Your order number"}</div>
+            </div>
+          </div>
+        </div>
+      )}
       <Button onClick={() => setView("home")}>Back to Home</Button>
     </div>
   );
@@ -1093,7 +1135,7 @@ function AdminDashboard({ orders, products }) {
 // ---------------------------------------------------------------
 const STATUS_FLOW = ["Requested", "Awaiting Confirmation", "Confirmed", "Processing", "Out for Delivery", "Delivered"];
 
-function AdminOrders({ orders, updateOrder }) {
+function AdminOrders({ orders, updateOrder, paybillNumber, paybillAccountNote }) {
   if (orders.length === 0) {
     return <p style={{ fontFamily: FONT_BODY, color: C.mute }}>No orders yet. Orders placed by customers will show up here.</p>;
   }
@@ -1101,8 +1143,11 @@ function AdminOrders({ orders, updateOrder }) {
     <div className="flex flex-col gap-4">
       {orders.map((o) => {
         const total = o.subtotal + (Number(o.deliveryFee) || 0);
+        const payWithPaybill = o.payment === "mpesa" && paybillNumber;
         const waMessage = encodeURIComponent(
-          `Hi ${o.form.name}, thanks for your CultureFitsKe order! Delivery to ${o.form.location} is KSh ${o.deliveryFee || "___"}. Your total is KSh ${total.toLocaleString()}. Reply YES to confirm and we'll get it moving.`
+          `Hi ${o.form.name}, thanks for your CultureFitsKe order! Delivery to ${o.form.location} is KSh ${o.deliveryFee || "___"}. Your total is KSh ${total.toLocaleString()}.` +
+          (payWithPaybill ? ` Pay via M-Pesa Paybill ${paybillNumber}, Account Number: ${o.id} (${paybillAccountNote || "your order number"}).` : "") +
+          ` Reply YES to confirm and we'll get it moving.`
         );
         const phoneDigits = o.form.phone.replace(/[^0-9]/g, "");
         return (
@@ -1393,12 +1438,71 @@ function AdminProducts({ products, addProduct, removeProduct }) {
 // ---------------------------------------------------------------
 // ADMIN SHELL
 // ---------------------------------------------------------------
-function AdminShell({ orders, updateOrder, products, addProduct, updateProduct, removeProduct }) {
+function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote }) {
+  const [feeInput, setFeeInput] = useState(String(customizationFee));
+  const [paybillInput, setPaybillInput] = useState(paybillNumber);
+  const [noteInput, setNoteInput] = useState(paybillAccountNote);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    const fee = Number(feeInput);
+    if (!Number.isNaN(fee) && fee >= 0) setCustomizationFee(fee);
+    setPaybillNumber(paybillInput.trim());
+    setPaybillAccountNote(noteInput.trim());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  };
+
+  return (
+    <div className="flex flex-col gap-6" style={{ maxWidth: 480 }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 20 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, color: C.white, textTransform: "uppercase", marginBottom: 4 }}>Customization Fee</div>
+        <p style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 12 }}>
+          Extra charge added when a customer adds name/number customization. Update this any time the market changes.
+        </p>
+        <div>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Fee (KSh)</div>
+          <input type="number" value={feeInput} onChange={(e) => setFeeInput(e.target.value)}
+            style={{ width: 140, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY }} />
+        </div>
+      </div>
+
+      <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 20 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, color: C.white, textTransform: "uppercase", marginBottom: 4 }}>M-Pesa Paybill</div>
+        <p style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 12 }}>
+          Shown to customers at checkout and included in your WhatsApp confirmation message. Customers pay you directly — no payment gateway involved.
+        </p>
+        <div className="flex flex-col gap-3">
+          <div>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Paybill Number</div>
+            <input value={paybillInput} onChange={(e) => setPaybillInput(e.target.value)} placeholder="e.g. 123456"
+              style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY }} />
+          </div>
+          <div>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Account Number instructions</div>
+            <input value={noteInput} onChange={(e) => setNoteInput(e.target.value)} placeholder="e.g. Use your order number as the Account Number"
+              style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY }} />
+          </div>
+        </div>
+      </div>
+
+      <Button onClick={handleSave}>
+        {saved ? <><Check size={16} /> Saved</> : "Save Settings"}
+      </Button>
+    </div>
+  );
+}
+
+function AdminShell({
+  orders, updateOrder, products, addProduct, updateProduct, removeProduct,
+  customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote,
+}) {
   const [tab, setTab] = useState("dashboard");
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
     { id: "orders", label: "Orders" },
     { id: "products", label: "Products & Stock" },
+    { id: "settings", label: "Settings" },
   ];
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
@@ -1414,8 +1518,15 @@ function AdminShell({ orders, updateOrder, products, addProduct, updateProduct, 
         ))}
       </div>
       {tab === "dashboard" && <AdminDashboard orders={orders} products={products} />}
-      {tab === "orders" && <AdminOrders orders={orders} updateOrder={updateOrder} />}
+      {tab === "orders" && <AdminOrders orders={orders} updateOrder={updateOrder} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
       {tab === "products" && <AdminProducts products={products} addProduct={addProduct} updateProduct={updateProduct} removeProduct={removeProduct} />}
+      {tab === "settings" && (
+        <AdminSettings
+          customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
+          paybillNumber={paybillNumber} setPaybillNumber={setPaybillNumber}
+          paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
+        />
+      )}
     </div>
   );
 }
@@ -1460,6 +1571,10 @@ export default function App() {
   const updateProduct = (id, patch) => setProducts((p) => p.map((x) => x.id === id ? { ...x, ...patch } : x));
   const removeProduct = (id) => setProducts((p) => p.filter((x) => x.id !== id));
 
+  const [customizationFee, setCustomizationFee] = useState(DEFAULT_CUSTOM_FEE);
+  const [paybillNumber, setPaybillNumber] = useState("");
+  const [paybillAccountNote, setPaybillAccountNote] = useState("Use your order number as the Account Number");
+
   const placeOrder = (form, payment, subtotal) => {
     setOrders((o) => [...o, {
       id: `ORD-${1000 + o.length}`,
@@ -1485,16 +1600,22 @@ export default function App() {
       <Header view={view} setView={setView} cartCount={cart.reduce((s, i) => s + i.qty, 0)} wishlistCount={wishlist.length} isAdmin={isAdmin} setIsAdmin={setIsAdmin} />
 
       {isAdmin ? (
-        <AdminShell orders={orders} updateOrder={updateOrder} products={products} addProduct={addProduct} updateProduct={updateProduct} removeProduct={removeProduct} />
+        <AdminShell
+          orders={orders} updateOrder={updateOrder} products={products}
+          addProduct={addProduct} updateProduct={updateProduct} removeProduct={removeProduct}
+          customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
+          paybillNumber={paybillNumber} setPaybillNumber={setPaybillNumber}
+          paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
+        />
       ) : (
         <>
-          {view === "home" && <Home setView={setView} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} />}
+          {view === "home" && <Home setView={setView} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} customizationFee={customizationFee} />}
           {view === "shop" && <Shop openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} />}
-          {view === "product" && activeProduct && <ProductDetail product={activeProduct} setView={setView} addToCart={addToCart} wishlist={wishlist} toggleWishlist={toggleWishlist} />}
+          {view === "product" && activeProduct && <ProductDetail product={activeProduct} setView={setView} addToCart={addToCart} wishlist={wishlist} toggleWishlist={toggleWishlist} customizationFee={customizationFee} />}
           {view === "cart" && <Cart cart={cart} updateQty={updateQty} removeItem={removeItem} setView={setView} />}
           {view === "wishlist" && <Wishlist wishlist={wishlist} toggleWishlist={toggleWishlist} openProduct={openProduct} products={products} />}
-          {view === "checkout" && <Checkout cart={cart} setView={setView} placeOrder={placeOrder} />}
-          {view === "confirmed" && <OrderConfirmed setView={setView} />}
+          {view === "checkout" && <Checkout cart={cart} setView={setView} placeOrder={placeOrder} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
+          {view === "confirmed" && <OrderConfirmed setView={setView} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
         </>
       )}
 

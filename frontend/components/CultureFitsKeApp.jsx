@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ShoppingCart, Heart, Search, X, Plus, Minus, ChevronLeft,
   Star, MessageCircle, Package, LayoutGrid, AlertTriangle,
@@ -104,7 +104,44 @@ const DEFAULT_PRODUCTS = (() => {
   return list;
 })();
 
-const DEFAULT_CUSTOM_FEE = 300; // starting value; admin can change this from Settings
+const DEFAULT_CUSTOM_FEE = 300; // fallback until /api/settings responds
+
+// ---------------------------------------------------------------
+// API HELPERS
+// ---------------------------------------------------------------
+async function apiFetch(path, { method = "GET", body, token, isFormData = false } = {}) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (!isFormData && body) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(path, {
+    method,
+    headers,
+    body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request to ${path} failed.`);
+  return data;
+}
+
+// Normalizes a product document from the API into the shape the UI expects.
+function normalizeProduct(p) {
+  return {
+    id: p.id || p._id,
+    team: p.team,
+    kit: p.kitType,
+    name: p.name,
+    type: p.version,
+    price: p.price,
+    accent: p.accent,
+    accent2: p.accent2,
+    photos: p.photos || [],
+    stock: p.stock || {},
+    rating: p.rating || 0,
+    reviews: p.reviewCount || 0,
+  };
+}
 
 // ---------------------------------------------------------------
 // JERSEY GRAPHIC (signature element — every kit is drawn, not photographed,
@@ -375,8 +412,9 @@ function Logo({ height = 40 }) {
 // ---------------------------------------------------------------
 // HEADER / NAV
 // ---------------------------------------------------------------
-function Header({ view, setView, cartCount, wishlistCount, isAdmin, setIsAdmin }) {
+function Header({ view, setView, cartCount, wishlistCount, user, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const isAdmin = user?.role === "admin";
   const nav = [
     { id: "home", label: "Home" },
     { id: "shop", label: "Shop" },
@@ -423,23 +461,42 @@ function Header({ view, setView, cartCount, wishlistCount, isAdmin, setIsAdmin }
         </nav>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsAdmin(!isAdmin)}
-            title="Toggle admin view (demo)"
-            style={{
-              display: "none",
-            }}
-          />
-          <button
-            onClick={() => setIsAdmin(!isAdmin)}
-            style={{
-              background: "none", border: `1px solid ${C.line}`, borderRadius: 6,
-              color: C.mute, fontFamily: FONT_BODY, fontSize: 12, padding: "6px 10px",
-              cursor: "pointer", marginRight: 6,
-            }}
-          >
-            {isAdmin ? "Exit Admin" : "Admin"}
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setView("admin")}
+              style={{
+                background: "none", border: `1px solid ${C.gold}`, borderRadius: 6,
+                color: C.gold, fontFamily: FONT_BODY, fontSize: 12, padding: "6px 10px",
+                cursor: "pointer", marginRight: 6,
+              }}
+            >
+              Admin
+            </button>
+          )}
+          {user ? (
+            <button
+              onClick={onLogout}
+              title={`Signed in as ${user.name}`}
+              style={{
+                background: "none", border: `1px solid ${C.line}`, borderRadius: 6,
+                color: C.mute, fontFamily: FONT_BODY, fontSize: 12, padding: "6px 10px",
+                cursor: "pointer", marginRight: 6,
+              }}
+            >
+              Log Out
+            </button>
+          ) : (
+            <button
+              onClick={() => setView("login")}
+              style={{
+                background: "none", border: `1px solid ${C.line}`, borderRadius: 6,
+                color: C.white, fontFamily: FONT_BODY, fontSize: 12, padding: "6px 10px",
+                cursor: "pointer", marginRight: 6,
+              }}
+            >
+              Log In
+            </button>
+          )}
           <button onClick={() => setView("cart")} style={{ position: "relative", background: "none", border: "none", cursor: "pointer", padding: 8 }}>
             <ShoppingCart size={22} color={C.white} />
             {cartCount > 0 && (
@@ -626,7 +683,7 @@ function ProductGrid({ products, openProduct, wishlist, toggleWishlist }) {
 // ---------------------------------------------------------------
 // SHOP VIEW
 // ---------------------------------------------------------------
-function Shop({ openProduct, wishlist, toggleWishlist, products }) {
+function Shop({ openProduct, wishlist, toggleWishlist, products, loading, error }) {
   const [team, setTeam] = useState("All");
   const [kit, setKit] = useState("All");
   const [filter, setFilter] = useState("All");
@@ -663,6 +720,24 @@ function Shop({ openProduct, wishlist, toggleWishlist, products }) {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-5 py-14">
+        <SectionLabel eyebrow="Full Range" title="Shop All Kits" />
+        <p style={{ fontFamily: FONT_BODY, color: C.mute }}>Loading kits...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto px-5 py-14">
+        <SectionLabel eyebrow="Full Range" title="Shop All Kits" />
+        <p style={{ fontFamily: FONT_BODY, color: "#ff9088" }}>Couldn't load the catalog: {error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-5 py-14">
       <SectionLabel eyebrow="Full Range" title="Shop All Kits" />
@@ -670,7 +745,11 @@ function Shop({ openProduct, wishlist, toggleWishlist, products }) {
       <FilterRow label="Kit" options={kitOptions} value={kit} onChange={setKit} />
       <FilterRow label="Version" options={types} value={filter} onChange={setFilter} />
       <div className="mt-6">
-        <ProductGrid products={filtered} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} />
+        {filtered.length === 0 ? (
+          <p style={{ fontFamily: FONT_BODY, color: C.mute }}>No kits match those filters yet.</p>
+        ) : (
+          <ProductGrid products={filtered} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} />
+        )}
       </div>
     </div>
   );
@@ -688,12 +767,14 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, 
   const [font, setFont] = useState("classic");
   const [namePosition, setNamePosition] = useState("below");
   const [designImage, setDesignImage] = useState(null);
+  const [designFile, setDesignFile] = useState(null);
 
   const handleDesignUpload = (fileList) => {
     const file = fileList[0];
     if (!file) return;
+    setDesignFile(file);
     const reader = new FileReader();
-    reader.onload = () => setDesignImage(reader.result);
+    reader.onload = () => setDesignImage(reader.result); // dataURL, for the live preview only
     reader.readAsDataURL(file);
   };
   const [added, setAdded] = useState(false);
@@ -714,7 +795,7 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, 
       accent: product.accent,
       accent2: product.accent2,
       size, sleeve,
-      customization: customize ? { name, number, font, namePosition, designImage } : null,
+      customization: customize ? { name, number, font, namePosition, designImage, designFile } : null,
       price: total,
       qty: 1,
     });
@@ -868,7 +949,7 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, 
                   {designImage ? (
                     <div className="flex items-center gap-3">
                       <img src={designImage} alt="Custom design" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
-                      <button onClick={() => setDesignImage(null)} style={{
+                      <button onClick={() => { setDesignImage(null); setDesignFile(null); }} style={{
                         background: "none", border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 12px",
                         color: C.mute, fontFamily: FONT_BODY, fontSize: 12, cursor: "pointer",
                       }}>Remove</button>
@@ -976,11 +1057,38 @@ function Wishlist({ wishlist, toggleWishlist, openProduct, products }) {
 // ---------------------------------------------------------------
 // CHECKOUT VIEW
 // ---------------------------------------------------------------
-function Checkout({ cart, setView, placeOrder, paybillNumber, paybillAccountNote }) {
-  const [form, setForm] = useState({ name: "", phone: "", location: "", notes: "" });
+function Checkout({ cart, setView, placeOrder, paybillNumber, paybillAccountNote, user }) {
+  const [form, setForm] = useState({ name: user?.name || "", phone: user?.phone || "", location: "", notes: "" });
   const [payment, setPayment] = useState("mpesa");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const canSubmit = form.name && form.phone && form.location && cart.length > 0;
+  const canSubmit = form.name && form.phone && form.location && cart.length > 0 && !submitting;
+
+  // Accounts are required to check out — a customer who reaches this view
+  // without being logged in gets sent to log in first, cart intact.
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-5 py-24 text-center">
+        <p style={{ fontFamily: FONT_BODY, color: C.mute, marginBottom: 16 }}>
+          You'll need to log in (or create an account) to place an order.
+        </p>
+        <Button onClick={() => setView("login")}>Log In</Button>
+      </div>
+    );
+  }
+
+  const handleSubmit = async () => {
+    setError("");
+    setSubmitting(true);
+    try {
+      await placeOrder(form, payment);
+    } catch (err) {
+      setError(err.message || "Could not place your order. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-14">
@@ -1052,18 +1160,22 @@ function Checkout({ cart, setView, placeOrder, paybillNumber, paybillAccountNote
         </div>
       </div>
 
-      <Button full disabled={!canSubmit} onClick={() => placeOrder(form, payment, subtotal)}>
-        Submit Order Request
+      {error && (
+        <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#ff9088", marginBottom: 16 }}>{error}</div>
+      )}
+
+      <Button full disabled={!canSubmit} onClick={handleSubmit}>
+        {submitting ? "Placing order..." : "Submit Order Request"}
       </Button>
     </div>
   );
 }
 
-function Field({ label, value, onChange, placeholder }) {
+function Field({ label, value, onChange, placeholder, type = "text" }) {
   return (
     <div>
       <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>{label}</div>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "11px 13px", color: C.white, fontFamily: FONT_BODY }} />
     </div>
   );
@@ -1104,21 +1216,107 @@ function OrderConfirmed({ setView, paybillNumber, paybillAccountNote }) {
 }
 
 // ---------------------------------------------------------------
+// LOGIN / REGISTER — real accounts, checked against the backend.
+// This is what actually decides who can see the admin panel: the
+// server tells us the account's role, the frontend never assumes it.
+// ---------------------------------------------------------------
+function Login({ setView, onAuthed }) {
+  const [mode, setMode] = useState("login"); // "login" | "register"
+  const [form, setForm] = useState({ name: "", phone: "", email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const body = mode === "login"
+        ? { phone: form.phone, password: form.password }
+        : { name: form.name, phone: form.phone, email: form.email, password: form.password };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        return;
+      }
+
+      onAuthed(data.token, data.user);
+      setView("home");
+    } catch (err) {
+      setError("Could not reach the server. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canSubmit = mode === "login"
+    ? form.phone && form.password
+    : form.name && form.phone && form.password.length >= 6;
+
+  return (
+    <div className="max-w-sm mx-auto px-5 py-16">
+      <SectionLabel eyebrow="Your account" title={mode === "login" ? "Log In" : "Create Account"} />
+
+      <div className="flex gap-2 mb-6">
+        {[{ id: "login", label: "Log In" }, { id: "register", label: "Register" }].map((m) => (
+          <button key={m.id} onClick={() => { setMode(m.id); setError(""); }} style={{
+            flex: 1, padding: "9px 0", borderRadius: 6, fontFamily: FONT_BODY, fontWeight: 600, fontSize: 13,
+            border: `1px solid ${mode === m.id ? C.gold : C.line}`,
+            background: mode === m.id ? "rgba(217,169,78,0.12)" : "transparent",
+            color: mode === m.id ? C.gold : C.white, cursor: "pointer",
+          }}>{m.label}</button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-4 mb-5">
+        {mode === "register" && (
+          <Field label="Full name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Your name" />
+        )}
+        <Field label="Phone number" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="07XX XXX XXX" />
+        {mode === "register" && (
+          <Field label="Email (optional)" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="you@example.com" />
+        )}
+        <Field label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder={mode === "register" ? "At least 6 characters" : "Your password"} />
+      </div>
+
+      {error && (
+        <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#ff9088", marginBottom: 16 }}>{error}</div>
+      )}
+
+      <Button full disabled={!canSubmit || loading} onClick={submit}>
+        {loading ? "Please wait..." : mode === "login" ? "Log In" : "Create Account"}
+      </Button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------
 // ADMIN — DASHBOARD
 // ---------------------------------------------------------------
-function AdminDashboard({ orders, products }) {
-  const revenue = orders.reduce((s, o) => s + o.subtotal, 0);
-  const lowStockCount = products.reduce((count, p) => {
-    const flagged = Object.values(p.stock).filter((v) => v > 0 && v <= 2).length;
-    return count + (flagged > 0 ? 1 : 0);
-  }, 0);
+function AdminDashboard({ token }) {
+  const [summary, setSummary] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiFetch("/api/dashboard/summary", { token }).then(setSummary).catch((err) => setError(err.message));
+  }, [token]);
+
+  if (error) return <p style={{ fontFamily: FONT_BODY, color: "#ff9088" }}>Couldn't load dashboard: {error}</p>;
+  if (!summary) return <p style={{ fontFamily: FONT_BODY, color: C.mute }}>Loading dashboard...</p>;
 
   return (
     <div className="grid sm:grid-cols-3 gap-4 mb-8">
       {[
-        { label: "Orders (pending)", value: orders.length, icon: Package },
-        { label: "Revenue (subtotal)", value: `KSh ${revenue.toLocaleString()}`, icon: LayoutGrid },
-        { label: "Low-stock kits", value: lowStockCount, icon: AlertTriangle },
+        { label: "Orders (pending)", value: summary.pendingOrders, icon: Package },
+        { label: "Revenue (delivered)", value: `KSh ${summary.revenue.toLocaleString()}`, icon: LayoutGrid },
+        { label: "Low-stock variants", value: summary.lowStockVariants.length, icon: AlertTriangle },
       ].map((s) => (
         <div key={s.label} style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 18 }}>
           <s.icon size={18} color={C.gold} />
@@ -1133,35 +1331,72 @@ function AdminDashboard({ orders, products }) {
 // ---------------------------------------------------------------
 // ADMIN — ORDERS (set delivery fee, confirm via WhatsApp, update status)
 // ---------------------------------------------------------------
-const STATUS_FLOW = ["Requested", "Awaiting Confirmation", "Confirmed", "Processing", "Out for Delivery", "Delivered"];
+const STATUS_FLOW = ["Requested", "Awaiting Confirmation", "Confirmed", "Processing", "Out for Delivery", "Delivered", "Cancelled"];
 
-function AdminOrders({ orders, updateOrder, paybillNumber, paybillAccountNote }) {
+function AdminOrders({ token }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [feeDrafts, setFeeDrafts] = useState({}); // orderId -> in-progress fee input
+  const [savingId, setSavingId] = useState(null);
+
+  const load = () => {
+    apiFetch("/api/orders", { token })
+      .then(setOrders)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [token]);
+
+  const saveDeliveryFee = async (orderId) => {
+    const fee = Number(feeDrafts[orderId]);
+    if (Number.isNaN(fee) || fee < 0) return;
+    setSavingId(orderId);
+    try {
+      const updated = await apiFetch(`/api/orders/${orderId}/delivery-fee`, {
+        method: "PATCH", token, body: { deliveryFee: fee },
+      });
+      setOrders((os) => os.map((o) => o.id === orderId ? updated : o));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const updateStatus = async (orderId, status) => {
+    try {
+      const updated = await apiFetch(`/api/orders/${orderId}/status`, { method: "PATCH", token, body: { status } });
+      setOrders((os) => os.map((o) => o.id === orderId ? updated : o));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  if (loading) return <p style={{ fontFamily: FONT_BODY, color: C.mute }}>Loading orders...</p>;
+  if (error) return <p style={{ fontFamily: FONT_BODY, color: "#ff9088" }}>{error}</p>;
   if (orders.length === 0) {
     return <p style={{ fontFamily: FONT_BODY, color: C.mute }}>No orders yet. Orders placed by customers will show up here.</p>;
   }
+
   return (
     <div className="flex flex-col gap-4">
       {orders.map((o) => {
-        const total = o.subtotal + (Number(o.deliveryFee) || 0);
-        const payWithPaybill = o.payment === "mpesa" && paybillNumber;
-        const waMessage = encodeURIComponent(
-          `Hi ${o.form.name}, thanks for your CultureFitsKe order! Delivery to ${o.form.location} is KSh ${o.deliveryFee || "___"}. Your total is KSh ${total.toLocaleString()}.` +
-          (payWithPaybill ? ` Pay via M-Pesa Paybill ${paybillNumber}, Account Number: ${o.id} (${paybillAccountNote || "your order number"}).` : "") +
-          ` Reply YES to confirm and we'll get it moving.`
-        );
-        const phoneDigits = o.form.phone.replace(/[^0-9]/g, "");
+        const total = o.deliveryFee != null ? o.subtotal + o.deliveryFee : o.subtotal;
+        const draft = feeDrafts[o.id] ?? (o.deliveryFee ?? "");
         return (
           <div key={o.id} style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 18 }}>
             <div className="flex flex-wrap justify-between items-start gap-3 mb-3">
               <div>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, color: C.white }}>{o.form.name} · {o.form.phone}</div>
-                <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute }}>{o.form.location} · {o.payment === "mpesa" ? "M-Pesa" : "Cash on Delivery"}</div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, color: C.white }}>{o.orderNumber} · {o.contactPhone}</div>
+                <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute }}>{o.deliveryLocation} · {o.paymentMethod === "mpesa" ? "M-Pesa" : "Cash on Delivery"}</div>
               </div>
               <Badge tone="gold">{o.status}</Badge>
             </div>
 
             <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.mute, marginBottom: 10 }}>
-              {o.items.map((i) => `${i.qty}× ${i.name} (${i.size}/${i.sleeve})`).join(", ")}
+              {o.items.map((i, idx) => `${i.quantity}× ${i.productName} (${i.size}/${i.sleeve})`).join(", ")}
             </div>
 
             <div className="flex flex-wrap items-end gap-3 mb-3">
@@ -1173,8 +1408,8 @@ function AdminOrders({ orders, updateOrder, paybillNumber, paybillAccountNote })
                 <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute, marginBottom: 4 }}>Delivery fee (KSh)</div>
                 <input
                   type="number"
-                  value={o.deliveryFee}
-                  onChange={(e) => updateOrder(o.id, { deliveryFee: e.target.value })}
+                  value={draft}
+                  onChange={(e) => setFeeDrafts((d) => ({ ...d, [o.id]: e.target.value }))}
                   placeholder="Set fee"
                   style={{ width: 100, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "7px 9px", color: C.white, fontFamily: FONT_BODY }}
                 />
@@ -1186,20 +1421,16 @@ function AdminOrders({ orders, updateOrder, paybillNumber, paybillAccountNote })
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <a
-                href={`https://wa.me/${phoneDigits}?text=${waMessage}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ textDecoration: "none" }}
-                onClick={() => updateOrder(o.id, { status: "Awaiting Confirmation" })}
+              <Button
+                variant="solid" style={{ padding: "9px 16px", fontSize: 13 }}
+                disabled={savingId === o.id || feeDrafts[o.id] == null}
+                onClick={() => saveDeliveryFee(o.id)}
               >
-                <Button variant="solid" style={{ padding: "9px 16px", fontSize: 13 }}>
-                  <MessageCircle size={14} /> Confirm Total via WhatsApp
-                </Button>
-              </a>
+                <MessageCircle size={14} /> {savingId === o.id ? "Sending..." : "Set Fee & Confirm via WhatsApp"}
+              </Button>
               <select
                 value={o.status}
-                onChange={(e) => updateOrder(o.id, { status: e.target.value })}
+                onChange={(e) => updateStatus(o.id, e.target.value)}
                 style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY, fontSize: 13 }}
               >
                 {STATUS_FLOW.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -1218,8 +1449,10 @@ function AdminOrders({ orders, updateOrder, paybillNumber, paybillAccountNote })
 function AddProductForm({ addProduct, products }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    team: "", kit: "Home", version: "Player Version", price: 1500, accent: C.red, accent2: C.blue, photos: [],
+    team: "", kit: "Home", version: "Player Version", price: 1500, accent: C.red, accent2: C.blue, photos: [], photoFiles: [],
   });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const MIN_PHOTOS = 3;
   const MAX_PHOTOS = 6;
@@ -1230,40 +1463,47 @@ function AddProductForm({ addProduct, products }) {
   ];
 
   const handleFiles = (fileList) => {
-    const files = Array.from(fileList).slice(0, MAX_PHOTOS - form.photos.length);
+    const files = Array.from(fileList).slice(0, MAX_PHOTOS - form.photoFiles.length);
     files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
         setForm((f) => ({ ...f, photos: [...f.photos, reader.result].slice(0, MAX_PHOTOS) }));
       };
       reader.readAsDataURL(file);
+      setForm((f) => ({ ...f, photoFiles: [...f.photoFiles, file].slice(0, MAX_PHOTOS) }));
     });
   };
 
-  const removePhoto = (idx) => setForm((f) => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
+  const removePhoto = (idx) => setForm((f) => ({
+    ...f,
+    photos: f.photos.filter((_, i) => i !== idx),
+    photoFiles: f.photoFiles.filter((_, i) => i !== idx),
+  }));
 
-  const canSave = form.team.trim() && form.photos.length >= MIN_PHOTOS;
+  const canSave = form.team.trim() && form.photoFiles.length >= MIN_PHOTOS && !saving;
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!canSave) return;
-    const id = `custom-${Date.now()}`;
-    addProduct({
-      id,
-      team: form.team.trim(),
-      teamId: form.team.trim().toLowerCase().replace(/\s+/g, "-"),
-      kit: form.kit,
-      name: `${form.team.trim()} ${form.kit} Kit`,
-      type: form.version,
-      price: Number(form.price) || 0,
-      accent: form.accent,
-      accent2: form.accent2,
-      photos: form.photos,
-      rating: 5.0,
-      reviews: 0,
-      stock: makeStock(),
-    });
-    setForm({ team: "", kit: "Home", version: "Player Version", price: 1500, accent: C.red, accent2: C.blue, photos: [] });
-    setOpen(false);
+    setError("");
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("team", form.team.trim());
+      fd.append("kitType", form.kit);
+      fd.append("version", form.version);
+      fd.append("price", String(Number(form.price) || 0));
+      fd.append("accent", form.accent);
+      fd.append("accent2", form.accent2);
+      form.photoFiles.forEach((file) => fd.append("photos", file));
+
+      await addProduct(fd);
+      setForm({ team: "", kit: "Home", version: "Player Version", price: 1500, accent: C.red, accent2: C.blue, photos: [], photoFiles: [] });
+      setOpen(false);
+    } catch (err) {
+      setError(err.message || "Could not save this kit. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!open) {
@@ -1382,9 +1622,13 @@ function AddProductForm({ addProduct, products }) {
         Stock for every size and sleeve combination is created automatically — you'll set actual counts from the Products & Stock list after adding. This drawn preview is what customers see while customizing name/number; your uploaded photos appear on the product gallery.
       </div>
 
+      {error && (
+        <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088", marginBottom: 16 }}>{error}</div>
+      )}
+
       <div className="flex gap-3">
         <Button onClick={handleAdd} disabled={!canSave}>
-          <Check size={16} /> Save Kit
+          <Check size={16} /> {saving ? "Saving..." : "Save Kit"}
         </Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </div>
@@ -1392,7 +1636,57 @@ function AddProductForm({ addProduct, products }) {
   );
 }
 
-function AdminProducts({ products, addProduct, removeProduct }) {
+function StockEditor({ product, updateStock }) {
+  const [drafts, setDrafts] = useState({});
+  const [savingKey, setSavingKey] = useState(null);
+
+  const save = async (size, sleeve) => {
+    const key = `${size}-${sleeve}`;
+    const value = Number(drafts[key]);
+    if (Number.isNaN(value) || value < 0) return;
+    setSavingKey(key);
+    try {
+      await updateStock(product.id, size, sleeve, value);
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+      {SIZES.map((size) => SLEEVES.map((sleeve) => {
+        const key = `${size}-${sleeve}`;
+        const current = product.stock[key] ?? 0;
+        const draft = drafts[key] ?? current;
+        return (
+          <div key={key} style={{ background: C.bgRaise, border: `1px solid ${C.line}`, borderRadius: 6, padding: 8 }}>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute, marginBottom: 4 }}>{size} · {sleeve}</div>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                value={draft}
+                onChange={(e) => setDrafts((d) => ({ ...d, [key]: e.target.value }))}
+                style={{ width: 48, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 4, padding: "4px 6px", color: C.white, fontFamily: FONT_BODY, fontSize: 12 }}
+              />
+              <button
+                onClick={() => save(size, sleeve)}
+                disabled={savingKey === key || Number(draft) === current}
+                style={{ background: "none", border: "none", cursor: "pointer", opacity: savingKey === key || Number(draft) === current ? 0.4 : 1 }}
+                title="Save"
+              >
+                <Check size={14} color={C.gold} />
+              </button>
+            </div>
+          </div>
+        );
+      }))}
+    </div>
+  );
+}
+
+function AdminProducts({ products, addProduct, removeProduct, updateStock }) {
+  const [expandedId, setExpandedId] = useState(null);
+
   return (
     <div>
       <AddProductForm addProduct={addProduct} products={products} />
@@ -1400,6 +1694,7 @@ function AdminProducts({ products, addProduct, removeProduct }) {
         {products.map((p) => {
           const lowKeys = Object.entries(p.stock).filter(([, v]) => v > 0 && v <= 2);
           const outKeys = Object.entries(p.stock).filter(([, v]) => v === 0);
+          const expanded = expandedId === p.id;
           return (
             <div key={p.id} style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 18 }}>
               <div className="flex items-center justify-between mb-2">
@@ -1427,6 +1722,15 @@ function AdminProducts({ products, addProduct, removeProduct }) {
               {outKeys.length === 0 && lowKeys.length === 0 && (
                 <Badge tone="mute">All variants healthy</Badge>
               )}
+
+              <button
+                onClick={() => setExpandedId(expanded ? null : p.id)}
+                style={{ background: "none", border: "none", color: C.gold, fontFamily: FONT_BODY, fontSize: 12, marginTop: 10, cursor: "pointer", padding: 0 }}
+              >
+                {expanded ? "Hide stock editor" : "Edit stock"}
+              </button>
+
+              {expanded && <StockEditor product={p} updateStock={updateStock} />}
             </div>
           );
         })}
@@ -1443,14 +1747,24 @@ function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, s
   const [paybillInput, setPaybillInput] = useState(paybillNumber);
   const [noteInput, setNoteInput] = useState(paybillAccountNote);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSave = () => {
-    const fee = Number(feeInput);
-    if (!Number.isNaN(fee) && fee >= 0) setCustomizationFee(fee);
-    setPaybillNumber(paybillInput.trim());
-    setPaybillAccountNote(noteInput.trim());
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1800);
+  const handleSave = async () => {
+    setError("");
+    setSaving(true);
+    try {
+      const fee = Number(feeInput);
+      if (!Number.isNaN(fee) && fee >= 0) await setCustomizationFee(fee);
+      await setPaybillNumber(paybillInput.trim());
+      await setPaybillAccountNote(noteInput.trim());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
+    } catch (err) {
+      setError(err.message || "Could not save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1486,15 +1800,19 @@ function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, s
         </div>
       </div>
 
-      <Button onClick={handleSave}>
-        {saved ? <><Check size={16} /> Saved</> : "Save Settings"}
+      {error && (
+        <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088" }}>{error}</div>
+      )}
+
+      <Button onClick={handleSave} disabled={saving}>
+        {saving ? "Saving..." : saved ? <><Check size={16} /> Saved</> : "Save Settings"}
       </Button>
     </div>
   );
 }
 
 function AdminShell({
-  orders, updateOrder, products, addProduct, updateProduct, removeProduct,
+  token, products, addProduct, removeProduct, updateStock,
   customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote,
 }) {
   const [tab, setTab] = useState("dashboard");
@@ -1517,9 +1835,9 @@ function AdminShell({
           }}>{t.label}</button>
         ))}
       </div>
-      {tab === "dashboard" && <AdminDashboard orders={orders} products={products} />}
-      {tab === "orders" && <AdminOrders orders={orders} updateOrder={updateOrder} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
-      {tab === "products" && <AdminProducts products={products} addProduct={addProduct} updateProduct={updateProduct} removeProduct={removeProduct} />}
+      {tab === "dashboard" && <AdminDashboard token={token} />}
+      {tab === "orders" && <AdminOrders token={token} />}
+      {tab === "products" && <AdminProducts products={products} addProduct={addProduct} removeProduct={removeProduct} updateStock={updateStock} />}
       {tab === "settings" && (
         <AdminSettings
           customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
@@ -1556,9 +1874,62 @@ export default function App() {
   const [activeProductId, setActiveProductId] = useState(null);
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [products, setProducts] = useState(DEFAULT_PRODUCTS);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState("");
+
+  // Real session state — who's logged in, and their verified role.
+  // The frontend never decides "this person is admin" on its own; it only
+  // ever trusts what /api/auth/me returns for the current token.
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const isAdmin = user?.role === "admin";
+
+  // On load, restore any saved session and re-verify it against the server
+  // rather than trusting the locally-cached role.
+  useEffect(() => {
+    const savedToken = typeof window !== "undefined" ? localStorage.getItem("cfk_token") : null;
+    if (!savedToken) { setAuthChecked(true); return; }
+
+    fetch("/api/auth/me", { headers: { Authorization: `Bearer ${savedToken}` } })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        setToken(savedToken);
+        setUser(data.user);
+      })
+      .catch(() => {
+        localStorage.removeItem("cfk_token");
+      })
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  // Load the real product catalog from the database on mount.
+  useEffect(() => {
+    apiFetch("/api/products")
+      .then((data) => setProducts(data.map(normalizeProduct)))
+      .catch((err) => setProductsError(err.message))
+      .finally(() => setProductsLoading(false));
+  }, []);
+
+  // Load wishlist whenever the session changes (login/logout).
+  useEffect(() => {
+    if (!token) { setWishlist([]); return; }
+    apiFetch("/api/wishlist", { token }).then(setWishlist).catch(() => {});
+  }, [token]);
+
+  const handleAuthed = (newToken, newUser) => {
+    localStorage.setItem("cfk_token", newToken);
+    setToken(newToken);
+    setUser(newUser);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("cfk_token");
+    setToken(null);
+    setUser(null);
+    if (view === "admin") setView("home");
+  };
 
   const openProduct = (id) => { setActiveProductId(id); setView("product"); };
   const activeProduct = useMemo(() => products.find((p) => p.id === activeProductId), [activeProductId, products]);
@@ -1566,28 +1937,122 @@ export default function App() {
   const addToCart = (item) => setCart((c) => [...c, item]);
   const updateQty = (id, delta) => setCart((c) => c.map((i) => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
   const removeItem = (id) => setCart((c) => c.filter((i) => i.id !== id));
-  const toggleWishlist = (id) => setWishlist((w) => w.includes(id) ? w.filter((x) => x !== id) : [...w, id]);
-  const addProduct = (product) => setProducts((p) => [...p, product]);
-  const updateProduct = (id, patch) => setProducts((p) => p.map((x) => x.id === id ? { ...x, ...patch } : x));
-  const removeProduct = (id) => setProducts((p) => p.filter((x) => x.id !== id));
 
-  const [customizationFee, setCustomizationFee] = useState(DEFAULT_CUSTOM_FEE);
-  const [paybillNumber, setPaybillNumber] = useState("");
-  const [paybillAccountNote, setPaybillAccountNote] = useState("Use your order number as the Account Number");
-
-  const placeOrder = (form, payment, subtotal) => {
-    setOrders((o) => [...o, {
-      id: `ORD-${1000 + o.length}`,
-      form, payment, subtotal,
-      items: cart,
-      deliveryFee: "",
-      status: "Requested",
-    }]);
-    setCart([]);
-    setView("confirmed");
+  // Wishlist actions require a real account — redirect to login rather than
+  // silently no-op or fake it with local-only state.
+  const toggleWishlist = async (id) => {
+    if (!token) { setView("login"); return; }
+    const saved = wishlist.includes(id);
+    setWishlist((w) => (saved ? w.filter((x) => x !== id) : [...w, id])); // optimistic
+    try {
+      await apiFetch(`/api/wishlist/${id}`, { method: saved ? "DELETE" : "POST", token });
+    } catch {
+      setWishlist((w) => (saved ? [...w, id] : w.filter((x) => x !== id))); // revert on failure
+    }
   };
 
-  const updateOrder = (id, patch) => setOrders((os) => os.map((o) => o.id === id ? { ...o, ...patch } : o));
+  // Admin: create a real product (multipart upload) and add the result to local state.
+  const addProduct = async (formData) => {
+    const created = await apiFetch("/api/products", { method: "POST", body: formData, token, isFormData: true });
+    setProducts((p) => [...p, normalizeProduct(created)]);
+  };
+
+  const removeProduct = async (id) => {
+    setProducts((p) => p.filter((x) => x.id !== id)); // optimistic
+    try {
+      await apiFetch(`/api/products/${id}`, { method: "DELETE", token });
+    } catch (err) {
+      // reload from server on failure rather than leaving state inconsistent
+      apiFetch("/api/products").then((data) => setProducts(data.map(normalizeProduct))).catch(() => {});
+    }
+  };
+
+  const updateStock = async (productId, size, sleeve, stock) => {
+    const result = await apiFetch(`/api/products/${productId}/stock`, {
+      method: "PATCH", token, body: { size, sleeve, stock },
+    });
+    setProducts((p) => p.map((x) => x.id === productId ? { ...x, stock: result.stock } : x));
+  };
+
+  const [customizationFee, setCustomizationFeeState] = useState(DEFAULT_CUSTOM_FEE);
+  const [paybillNumber, setPaybillNumberState] = useState("");
+  const [paybillAccountNote, setPaybillAccountNoteState] = useState("Use your order number as the Account Number");
+
+  // Load store settings (customization fee, Paybill details) on mount — public endpoint.
+  useEffect(() => {
+    apiFetch("/api/settings")
+      .then((data) => {
+        setCustomizationFeeState(data.customizationFee);
+        setPaybillNumberState(data.paybillNumber);
+        setPaybillAccountNoteState(data.paybillAccountNote);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Admin: persist settings changes to the server, not just local state.
+  const setCustomizationFee = async (fee) => {
+    setCustomizationFeeState(fee); // optimistic
+    await apiFetch("/api/settings", { method: "PATCH", token, body: { customizationFee: fee } });
+  };
+  const setPaybillNumber = async (value) => {
+    setPaybillNumberState(value);
+    await apiFetch("/api/settings", { method: "PATCH", token, body: { paybillNumber: value } });
+  };
+  const setPaybillAccountNote = async (value) => {
+    setPaybillAccountNoteState(value);
+    await apiFetch("/api/settings", { method: "PATCH", token, body: { paybillAccountNote: value } });
+  };
+
+  // Places a real order. Any customer-uploaded design images are uploaded to
+  // Cloudinary first so the order stores a URL, not a giant inline data: string.
+  const placeOrder = async (form, payment) => {
+    const items = await Promise.all(cart.map(async (item) => {
+      let designUrl = null;
+      if (item.customization?.designFile) {
+        const fd = new FormData();
+        fd.append("design", item.customization.designFile);
+        const result = await apiFetch("/api/orders/upload-design", { method: "POST", body: fd, token, isFormData: true });
+        designUrl = result.url;
+      }
+      return {
+        productId: item.productId,
+        size: item.size,
+        sleeve: item.sleeve,
+        quantity: item.qty,
+        customization: item.customization ? {
+          name: item.customization.name,
+          number: item.customization.number,
+          font: item.customization.font,
+          namePosition: item.customization.namePosition,
+          designUrl,
+        } : null,
+      };
+    }));
+
+    const order = await apiFetch("/api/orders", {
+      method: "POST",
+      token,
+      body: {
+        items,
+        deliveryLocation: form.location,
+        deliveryNotes: form.notes,
+        contactPhone: form.phone,
+        paymentMethod: payment,
+      },
+    });
+
+    setCart([]);
+    setView("confirmed");
+    return order;
+  };
+
+  // Admin view requires both a chosen "admin" view AND a verified admin session —
+  // picking the view alone (e.g. by guessing a URL) does nothing without the role.
+  const showAdmin = view === "admin" && isAdmin;
+
+  if (!authChecked) {
+    return <div style={{ background: C.bg, minHeight: "100vh" }} />;
+  }
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", fontFamily: FONT_BODY }}>
@@ -1597,12 +2062,12 @@ export default function App() {
         body { margin: 0; }
       `}</style>
 
-      <Header view={view} setView={setView} cartCount={cart.reduce((s, i) => s + i.qty, 0)} wishlistCount={wishlist.length} isAdmin={isAdmin} setIsAdmin={setIsAdmin} />
+      <Header view={view} setView={setView} cartCount={cart.reduce((s, i) => s + i.qty, 0)} wishlistCount={wishlist.length} user={user} onLogout={handleLogout} />
 
-      {isAdmin ? (
+      {showAdmin ? (
         <AdminShell
-          orders={orders} updateOrder={updateOrder} products={products}
-          addProduct={addProduct} updateProduct={updateProduct} removeProduct={removeProduct}
+          token={token} products={products}
+          addProduct={addProduct} removeProduct={removeProduct} updateStock={updateStock}
           customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
           paybillNumber={paybillNumber} setPaybillNumber={setPaybillNumber}
           paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
@@ -1610,12 +2075,21 @@ export default function App() {
       ) : (
         <>
           {view === "home" && <Home setView={setView} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} customizationFee={customizationFee} />}
-          {view === "shop" && <Shop openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} />}
+          {view === "shop" && <Shop openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} loading={productsLoading} error={productsError} />}
           {view === "product" && activeProduct && <ProductDetail product={activeProduct} setView={setView} addToCart={addToCart} wishlist={wishlist} toggleWishlist={toggleWishlist} customizationFee={customizationFee} />}
           {view === "cart" && <Cart cart={cart} updateQty={updateQty} removeItem={removeItem} setView={setView} />}
           {view === "wishlist" && <Wishlist wishlist={wishlist} toggleWishlist={toggleWishlist} openProduct={openProduct} products={products} />}
-          {view === "checkout" && <Checkout cart={cart} setView={setView} placeOrder={placeOrder} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
+          {view === "checkout" && <Checkout cart={cart} setView={setView} placeOrder={placeOrder} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} user={user} />}
           {view === "confirmed" && <OrderConfirmed setView={setView} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
+          {view === "login" && <Login setView={setView} onAuthed={handleAuthed} />}
+          {view === "admin" && !isAdmin && (
+            <div className="max-w-md mx-auto px-5 py-24 text-center">
+              <p style={{ fontFamily: FONT_BODY, color: C.mute, marginBottom: 16 }}>
+                {user ? "This account doesn't have admin access." : "You need to log in with an admin account to see this page."}
+              </p>
+              <Button onClick={() => setView(user ? "home" : "login")}>{user ? "Back to Home" : "Log In"}</Button>
+            </div>
+          )}
         </>
       )}
 

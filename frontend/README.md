@@ -120,7 +120,6 @@ database — items live in browser memory until checkout, same as most
 storefronts. That's expected, not a gap.
 
 **Not yet built:**
-<<<<<<< HEAD
 - No M-Pesa payment confirmation automation — that stays manual, by design (see section 4)
 
 Reviews (a submission form plus a list on each product page) and a customer
@@ -132,4 +131,3 @@ wired to the real API now.
 - No M-Pesa payment confirmation automation — that stays manual, by design (see section 4)
 
 Ask to have either of the two "not yet built" items added whenever you want them.
->>>>>>> cac465edf4015812b1dc6231adf35aa64b041306

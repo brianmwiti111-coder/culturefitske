@@ -42,12 +42,8 @@ export async function GET(request) {
 }
 
 // POST /api/products — admin only. multipart/form-data: team, kitType, version, price,
-<<<<<<< HEAD
 // accent, accent2, photos (File, repeated, min 3), variants (JSON string, optional —
 // [{size, sleeve, stock}], only the sizes/sleeves this kit actually comes in)
-=======
-// accent, accent2, photos (File, repeated, min 3)
->>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
 export async function POST(request) {
   try {
     requireAdmin(request);
@@ -61,11 +57,8 @@ export async function POST(request) {
     const accent = form.get("accent") || null;
     const accent2 = form.get("accent2") || null;
     const files = form.getAll("photos").filter((f) => typeof f !== "string");
-<<<<<<< HEAD
     const variantsRaw = form.get("variants");
     const customizationPhotoIndex = form.get("customizationPhotoIndex");
-=======
->>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
 
     if (!team || !kitType || !version || !price) {
       return NextResponse.json({ error: "team, kitType, version and price are required." }, { status: 400 });
@@ -74,7 +67,6 @@ export async function POST(request) {
       return NextResponse.json({ error: "Upload at least 3 product photos." }, { status: 400 });
     }
 
-<<<<<<< HEAD
     let variants = defaultVariants();
     if (variantsRaw) {
       try {
@@ -98,15 +90,6 @@ export async function POST(request) {
       name: `${team} ${kitType} Kit`,
       price,
       variants,
-=======
-    const photos = await Promise.all(files.map((f) => uploadFile(f, "culturefitske/products")));
-
-    const product = await Product.create({
-      team, kitType, version, accent, accent2, photos,
-      name: `${team} ${kitType} Kit`,
-      price,
-      variants: defaultVariants(),
->>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
     });
 
     return NextResponse.json(await withRating(product), { status: 201 });

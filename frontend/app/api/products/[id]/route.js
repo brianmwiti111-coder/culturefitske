@@ -25,7 +25,6 @@ export async function GET(request, { params }) {
   return NextResponse.json(await withRating(product));
 }
 
-<<<<<<< HEAD
 // PATCH /api/products/:id — admin only. Body: { customizationPhoto } — must be one of
 // the product's own photos[] URLs (or null to fall back to the drawn preview).
 export async function PATCH(request, { params }) {
@@ -51,8 +50,6 @@ export async function PATCH(request, { params }) {
   }
 }
 
-=======
->>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
 // DELETE /api/products/:id — admin only. Soft delete, keeps order history intact.
 export async function DELETE(request, { params }) {
   try {

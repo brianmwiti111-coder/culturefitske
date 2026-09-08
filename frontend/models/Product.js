@@ -16,7 +16,10 @@ const ProductSchema = new mongoose.Schema({
   accent: { type: String },
   accent2: { type: String },
   photos: { type: [String], default: [] }, // Cloudinary URLs, min 3 enforced in the route handler
+<<<<<<< HEAD
   customizationPhoto: { type: String, default: null }, // one of the photos[] URLs — where name/number/design get overlaid
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
   variants: { type: [VariantSchema], default: [] },
   active: { type: Boolean, default: true },
 }, { timestamps: true });

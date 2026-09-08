@@ -137,7 +137,10 @@ function normalizeProduct(p) {
     accent: p.accent,
     accent2: p.accent2,
     photos: p.photos || [],
+<<<<<<< HEAD
     customizationPhoto: p.customizationPhoto || null,
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
     stock: p.stock || {},
     rating: p.rating || 0,
     reviews: p.reviewCount || 0,
@@ -219,6 +222,7 @@ function JerseyArt({ accent, accent2, sleeve = "Short", name, number, font, name
   );
 }
 
+<<<<<<< HEAD
 // Overlays a customer's name/number/design on top of a real uploaded product
 // photo (chosen by the admin), instead of the drawn SVG jersey. Positioning is
 // a reasonable default for a front-on, chest-centered shot — not pixel-perfect
@@ -261,6 +265,8 @@ function PhotoCustomizationPreview({ photoUrl, name, number, font, namePosition 
   );
 }
 
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
 // ---------------------------------------------------------------
 // SMALL UI PRIMITIVES
 // ---------------------------------------------------------------
@@ -516,6 +522,7 @@ function Header({ view, setView, cartCount, wishlistCount, user, onLogout }) {
               Admin
             </button>
           )}
+<<<<<<< HEAD
           {user && (
             <button
               onClick={() => setView("myOrders")}
@@ -528,6 +535,8 @@ function Header({ view, setView, cartCount, wishlistCount, user, onLogout }) {
               My Orders
             </button>
           )}
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
           {user ? (
             <button
               onClick={onLogout}
@@ -813,7 +822,11 @@ function Shop({ openProduct, wishlist, toggleWishlist, products, loading, error 
 // ---------------------------------------------------------------
 // PRODUCT DETAIL VIEW
 // ---------------------------------------------------------------
+<<<<<<< HEAD
 function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, customizationFee, token, user }) {
+=======
+function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, customizationFee }) {
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
   const [size, setSize] = useState("M");
   const [sleeve, setSleeve] = useState("Short");
   const [customize, setCustomize] = useState(false);
@@ -867,6 +880,7 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, 
         <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 12, padding: 20 }}>
           {customize ? (
             <>
+<<<<<<< HEAD
               {product.customizationPhoto ? (
                 <PhotoCustomizationPreview
                   photoUrl={product.customizationPhoto}
@@ -881,6 +895,13 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, 
                   <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute }}>
                     {product.customizationPhoto ? "Preview on your actual kit photo — exact placement may vary slightly" : "Live preview — this is exactly how it prints"}
                   </span>
+=======
+              <JerseyArt accent={product.accent} accent2={product.accent2} sleeve={sleeve} name={name} number={number} font={font} namePosition={namePosition} designImage={designImage} big />
+              {(name || number) && (
+                <div className="flex items-center gap-2 justify-center mt-3">
+                  <Sparkles size={14} color={C.gold} />
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute }}>Live preview — this is exactly how it prints</span>
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
                 </div>
               )}
             </>
@@ -1043,6 +1064,7 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, 
           </div>
         </div>
       </div>
+<<<<<<< HEAD
 
       <ProductReviews productId={product.id} token={token} user={user} />
     </div>
@@ -1133,6 +1155,8 @@ function ProductReviews({ productId, token, user }) {
       ) : (
         <p style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.mute }}>Log in to leave a review.</p>
       )}
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
     </div>
   );
 }
@@ -1370,6 +1394,7 @@ function OrderConfirmed({ setView, paybillNumber, paybillAccountNote }) {
 }
 
 // ---------------------------------------------------------------
+<<<<<<< HEAD
 // MY ORDERS — customer's own order history
 // ---------------------------------------------------------------
 function MyOrders({ token, user, setView }) {
@@ -1433,6 +1458,10 @@ function MyOrders({ token, user, setView }) {
     </div>
   );
 }
+=======
+// LOGIN / REGISTER — real accounts, checked against the backend.
+// This is what actually decides who can see the admin panel: the
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
 // server tells us the account's role, the frontend never assumes it.
 // ---------------------------------------------------------------
 function Login({ setView, onAuthed }) {
@@ -1666,10 +1695,13 @@ function AddProductForm({ addProduct, products }) {
   const [form, setForm] = useState({
     team: "", kit: "Home", version: "Player Version", price: 1500, accent: C.red, accent2: C.blue, photos: [], photoFiles: [],
   });
+<<<<<<< HEAD
   const [selectedSizes, setSelectedSizes] = useState([...SIZES]); // which sizes this kit comes in
   const [selectedSleeves, setSelectedSleeves] = useState([...SLEEVES]); // which sleeve options this kit comes in
   const [initialStock, setInitialStock] = useState({}); // "S-Short" -> starting stock count
   const [customizationPhotoIndex, setCustomizationPhotoIndex] = useState(null); // which uploaded photo customization overlays on
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -1693,6 +1725,7 @@ function AddProductForm({ addProduct, products }) {
     });
   };
 
+<<<<<<< HEAD
   const removePhoto = (idx) => {
     setForm((f) => ({
       ...f,
@@ -1710,6 +1743,15 @@ function AddProductForm({ addProduct, products }) {
   const toggleSleeve = (sleeve) => setSelectedSleeves((s) => s.includes(sleeve) ? s.filter((x) => x !== sleeve) : [...s, sleeve]);
 
   const canSave = form.team.trim() && form.photoFiles.length >= MIN_PHOTOS && selectedSizes.length > 0 && selectedSleeves.length > 0 && !saving;
+=======
+  const removePhoto = (idx) => setForm((f) => ({
+    ...f,
+    photos: f.photos.filter((_, i) => i !== idx),
+    photoFiles: f.photoFiles.filter((_, i) => i !== idx),
+  }));
+
+  const canSave = form.team.trim() && form.photoFiles.length >= MIN_PHOTOS && !saving;
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
 
   const handleAdd = async () => {
     if (!canSave) return;
@@ -1725,6 +1767,7 @@ function AddProductForm({ addProduct, products }) {
       fd.append("accent2", form.accent2);
       form.photoFiles.forEach((file) => fd.append("photos", file));
 
+<<<<<<< HEAD
       const variants = [];
       for (const size of selectedSizes) {
         for (const sleeve of selectedSleeves) {
@@ -1740,6 +1783,10 @@ function AddProductForm({ addProduct, products }) {
       setSelectedSleeves([...SLEEVES]);
       setInitialStock({});
       setCustomizationPhotoIndex(null);
+=======
+      await addProduct(fd);
+      setForm({ team: "", kit: "Home", version: "Player Version", price: 1500, accent: C.red, accent2: C.blue, photos: [], photoFiles: [] });
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
       setOpen(false);
     } catch (err) {
       setError(err.message || "Could not save this kit. Please try again.");
@@ -1824,6 +1871,7 @@ function AddProductForm({ addProduct, products }) {
       </div>
 
       <div className="mb-4">
+<<<<<<< HEAD
         <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Sizes this kit comes in</div>
         <div className="flex gap-2 flex-wrap mb-3">
           {SIZES.map((size) => (
@@ -1875,10 +1923,13 @@ function AddProductForm({ addProduct, products }) {
       </div>
 
       <div className="mb-4">
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
         <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>
           Product photos — front, back, badge close-up (minimum {MIN_PHOTOS})
         </div>
         <div className="flex gap-2 flex-wrap mb-2">
+<<<<<<< HEAD
           {form.photos.map((src, i) => {
             const isChosen = customizationPhotoIndex === i;
             return (
@@ -1906,6 +1957,19 @@ function AddProductForm({ addProduct, products }) {
               </div>
             );
           })}
+=======
+          {form.photos.map((src, i) => (
+            <div key={i} style={{ position: "relative", width: 72, height: 72 }}>
+              <img src={src} alt={`Kit photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
+              <button
+                onClick={() => removePhoto(i)}
+                style={{ position: "absolute", top: -6, right: -6, background: C.red, border: "none", borderRadius: 999, width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+              >
+                <X size={11} color="#fff" />
+              </button>
+            </div>
+          ))}
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
           {form.photos.length < MAX_PHOTOS && (
             <label style={{
               width: 72, height: 72, borderRadius: 6, border: `1px dashed ${C.line}`,
@@ -1916,6 +1980,7 @@ function AddProductForm({ addProduct, products }) {
             </label>
           )}
         </div>
+<<<<<<< HEAD
         {form.photos.length > 0 && (
           <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute, marginBottom: 4 }}>
             {customizationPhotoIndex !== null
@@ -1923,6 +1988,8 @@ function AddProductForm({ addProduct, products }) {
               : "Tap the sparkle on a front-facing photo to preview customization on it, instead of a drawn jersey."}
           </div>
         )}
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
         <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: form.photos.length >= MIN_PHOTOS ? C.mute : "#ff9088" }}>
           {form.photos.length} of {MIN_PHOTOS} required photos added
           {form.photos.length < MIN_PHOTOS ? " — add more to save this kit" : ""}
@@ -1953,6 +2020,7 @@ function AddProductForm({ addProduct, products }) {
 }
 
 function StockEditor({ product, updateStock }) {
+<<<<<<< HEAD
   const existingKeys = Object.keys(product.stock); // only variants this kit actually has
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState(false);
@@ -2000,10 +2068,25 @@ function StockEditor({ product, updateStock }) {
       setAddingStock("0");
     } catch (err) {
       setError(err.message || "Could not add that size.");
+=======
+  const [drafts, setDrafts] = useState({});
+  const [savingKey, setSavingKey] = useState(null);
+
+  const save = async (size, sleeve) => {
+    const key = `${size}-${sleeve}`;
+    const value = Number(drafts[key]);
+    if (Number.isNaN(value) || value < 0) return;
+    setSavingKey(key);
+    try {
+      await updateStock(product.id, size, sleeve, value);
+    } finally {
+      setSavingKey(null);
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
     }
   };
 
   return (
+<<<<<<< HEAD
     <div className="mt-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         {existingKeys.map((key) => {
@@ -2013,10 +2096,22 @@ function StockEditor({ product, updateStock }) {
           return (
             <div key={key} style={{ background: C.bgRaise, border: `1px solid ${C.line}`, borderRadius: 6, padding: 8 }}>
               <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute, marginBottom: 4 }}>{size} · {sleeve}</div>
+=======
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+      {SIZES.map((size) => SLEEVES.map((sleeve) => {
+        const key = `${size}-${sleeve}`;
+        const current = product.stock[key] ?? 0;
+        const draft = drafts[key] ?? current;
+        return (
+          <div key={key} style={{ background: C.bgRaise, border: `1px solid ${C.line}`, borderRadius: 6, padding: 8 }}>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute, marginBottom: 4 }}>{size} · {sleeve}</div>
+            <div className="flex items-center gap-1">
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
               <input
                 type="number"
                 value={draft}
                 onChange={(e) => setDrafts((d) => ({ ...d, [key]: e.target.value }))}
+<<<<<<< HEAD
                 style={{
                   width: "100%", background: C.bg,
                   border: `1px solid ${Number(draft) !== current ? C.gold : C.line}`,
@@ -2065,10 +2160,27 @@ function StockEditor({ product, updateStock }) {
           </div>
         </div>
       )}
+=======
+                style={{ width: 48, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 4, padding: "4px 6px", color: C.white, fontFamily: FONT_BODY, fontSize: 12 }}
+              />
+              <button
+                onClick={() => save(size, sleeve)}
+                disabled={savingKey === key || Number(draft) === current}
+                style={{ background: "none", border: "none", cursor: "pointer", opacity: savingKey === key || Number(draft) === current ? 0.4 : 1 }}
+                title="Save"
+              >
+                <Check size={14} color={C.gold} />
+              </button>
+            </div>
+          </div>
+        );
+      }))}
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
     </div>
   );
 }
 
+<<<<<<< HEAD
 function CustomizationPhotoPicker({ product, setCustomizationPhoto }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -2122,6 +2234,10 @@ function CustomizationPhotoPicker({ product, setCustomizationPhoto }) {
 function AdminProducts({ products, addProduct, removeProduct, updateStock, setCustomizationPhoto }) {
   const [expandedId, setExpandedId] = useState(null);
   const [photoExpandedId, setPhotoExpandedId] = useState(null);
+=======
+function AdminProducts({ products, addProduct, removeProduct, updateStock }) {
+  const [expandedId, setExpandedId] = useState(null);
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
 
   return (
     <div>
@@ -2131,7 +2247,10 @@ function AdminProducts({ products, addProduct, removeProduct, updateStock, setCu
           const lowKeys = Object.entries(p.stock).filter(([, v]) => v > 0 && v <= 2);
           const outKeys = Object.entries(p.stock).filter(([, v]) => v === 0);
           const expanded = expandedId === p.id;
+<<<<<<< HEAD
           const photoExpanded = photoExpandedId === p.id;
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
           return (
             <div key={p.id} style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 18 }}>
               <div className="flex items-center justify-between mb-2">
@@ -2160,6 +2279,7 @@ function AdminProducts({ products, addProduct, removeProduct, updateStock, setCu
                 <Badge tone="mute">All variants healthy</Badge>
               )}
 
+<<<<<<< HEAD
               <div className="flex gap-4">
                 <button
                   onClick={() => setExpandedId(expanded ? null : p.id)}
@@ -2177,6 +2297,16 @@ function AdminProducts({ products, addProduct, removeProduct, updateStock, setCu
 
               {expanded && <StockEditor product={p} updateStock={updateStock} />}
               {photoExpanded && <CustomizationPhotoPicker product={p} setCustomizationPhoto={setCustomizationPhoto} />}
+=======
+              <button
+                onClick={() => setExpandedId(expanded ? null : p.id)}
+                style={{ background: "none", border: "none", color: C.gold, fontFamily: FONT_BODY, fontSize: 12, marginTop: 10, cursor: "pointer", padding: 0 }}
+              >
+                {expanded ? "Hide stock editor" : "Edit stock"}
+              </button>
+
+              {expanded && <StockEditor product={p} updateStock={updateStock} />}
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
             </div>
           );
         })}
@@ -2258,7 +2388,11 @@ function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, s
 }
 
 function AdminShell({
+<<<<<<< HEAD
   token, products, addProduct, removeProduct, updateStock, setCustomizationPhoto,
+=======
+  token, products, addProduct, removeProduct, updateStock,
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
   customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote,
 }) {
   const [tab, setTab] = useState("dashboard");
@@ -2283,7 +2417,11 @@ function AdminShell({
       </div>
       {tab === "dashboard" && <AdminDashboard token={token} />}
       {tab === "orders" && <AdminOrders token={token} />}
+<<<<<<< HEAD
       {tab === "products" && <AdminProducts products={products} addProduct={addProduct} removeProduct={removeProduct} updateStock={updateStock} setCustomizationPhoto={setCustomizationPhoto} />}
+=======
+      {tab === "products" && <AdminProducts products={products} addProduct={addProduct} removeProduct={removeProduct} updateStock={updateStock} />}
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
       {tab === "settings" && (
         <AdminSettings
           customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
@@ -2413,6 +2551,7 @@ export default function App() {
     }
   };
 
+<<<<<<< HEAD
   const setCustomizationPhoto = async (productId, photoUrl) => {
     const updated = await apiFetch(`/api/products/${productId}`, {
       method: "PATCH", token, body: { customizationPhoto: photoUrl },
@@ -2420,6 +2559,8 @@ export default function App() {
     setProducts((p) => p.map((x) => x.id === productId ? { ...x, customizationPhoto: updated.customizationPhoto } : x));
   };
 
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
   const updateStock = async (productId, size, sleeve, stock) => {
     const result = await apiFetch(`/api/products/${productId}/stock`, {
       method: "PATCH", token, body: { size, sleeve, stock },
@@ -2520,7 +2661,11 @@ export default function App() {
       {showAdmin ? (
         <AdminShell
           token={token} products={products}
+<<<<<<< HEAD
           addProduct={addProduct} removeProduct={removeProduct} updateStock={updateStock} setCustomizationPhoto={setCustomizationPhoto}
+=======
+          addProduct={addProduct} removeProduct={removeProduct} updateStock={updateStock}
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
           customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
           paybillNumber={paybillNumber} setPaybillNumber={setPaybillNumber}
           paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
@@ -2529,13 +2674,20 @@ export default function App() {
         <>
           {view === "home" && <Home setView={setView} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} customizationFee={customizationFee} />}
           {view === "shop" && <Shop openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} loading={productsLoading} error={productsError} />}
+<<<<<<< HEAD
           {view === "product" && activeProduct && <ProductDetail product={activeProduct} setView={setView} addToCart={addToCart} wishlist={wishlist} toggleWishlist={toggleWishlist} customizationFee={customizationFee} token={token} user={user} />}
+=======
+          {view === "product" && activeProduct && <ProductDetail product={activeProduct} setView={setView} addToCart={addToCart} wishlist={wishlist} toggleWishlist={toggleWishlist} customizationFee={customizationFee} />}
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
           {view === "cart" && <Cart cart={cart} updateQty={updateQty} removeItem={removeItem} setView={setView} />}
           {view === "wishlist" && <Wishlist wishlist={wishlist} toggleWishlist={toggleWishlist} openProduct={openProduct} products={products} />}
           {view === "checkout" && <Checkout cart={cart} setView={setView} placeOrder={placeOrder} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} user={user} />}
           {view === "confirmed" && <OrderConfirmed setView={setView} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
           {view === "login" && <Login setView={setView} onAuthed={handleAuthed} />}
+<<<<<<< HEAD
           {view === "myOrders" && <MyOrders token={token} user={user} setView={setView} />}
+=======
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306
           {view === "admin" && !isAdmin && (
             <div className="max-w-md mx-auto px-5 py-24 text-center">
               <p style={{ fontFamily: FONT_BODY, color: C.mute, marginBottom: 16 }}>

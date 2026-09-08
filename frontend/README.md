@@ -120,8 +120,16 @@ database — items live in browser memory until checkout, same as most
 storefronts. That's expected, not a gap.
 
 **Not yet built:**
+<<<<<<< HEAD
 - No M-Pesa payment confirmation automation — that stays manual, by design (see section 4)
 
 Reviews (a submission form plus a list on each product page) and a customer
 "My Orders" history page (in the header once logged in) are both built and
 wired to the real API now.
+=======
+- No UI for customers to leave reviews (the review API routes exist, but there's no submission form on the product page yet)
+- No customer-facing "my orders" history page (the `/api/orders/mine` route exists and is ready to use)
+- No M-Pesa payment confirmation automation — that stays manual, by design (see section 4)
+
+Ask to have either of the two "not yet built" items added whenever you want them.
+>>>>>>> cac465edf4015812b1dc6231adf35aa64b041306

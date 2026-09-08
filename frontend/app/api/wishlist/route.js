@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "../../../lib/mongodb";
 import { requireAuth, AuthError } from "../../../lib/auth";
 import WishlistItem from "../../../models/WishlistItem";
+export const dynamic = 'force-dynamic';
 
 // GET /api/wishlist — the logged-in customer's saved product IDs
 export async function GET(request) {

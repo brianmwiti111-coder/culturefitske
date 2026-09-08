@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "../../../../lib/mongodb";
 import { requireAuth, AuthError } from "../../../../lib/auth";
 import Order from "../../../../models/Order";
+export const dynamic = 'force-dynamic';
 
 function withTotal(order) {
   const obj = order.toObject();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "../../../../lib/mongodb";
 import { requireAdmin, AuthError } from "../../../../lib/auth";
 import Order from "../../../../models/Order";
+export const dynamic = 'force-dynamic';
 
 // GET /api/dashboard/sales?range=daily|weekly|monthly — admin only
 export async function GET(request) {

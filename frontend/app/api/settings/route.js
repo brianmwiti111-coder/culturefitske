@@ -2,25 +2,33 @@ import { NextResponse } from "next/server";
 import { requireAdmin, AuthError } from "../../../lib/auth";
 import { getSettings, setSetting, ensureDefaultSettings } from "../../../lib/settings";
 
-const PUBLIC_KEYS = ["customization_fee", "paybill_number", "paybill_account_note"];
+const PUBLIC_KEYS = ["customization_fee", "paybill_number", "paybill_account_note", "store_address", "store_map_link"];
 
-// GET /api/settings — public. Used by the storefront at checkout and product customization.
-export async function GET() {
-  await ensureDefaultSettings();
-  const settings = await getSettings(PUBLIC_KEYS);
-  return NextResponse.json({
+function shape(settings) {
+  return {
     customizationFee: Number(settings.customization_fee),
     paybillNumber: settings.paybill_number,
     paybillAccountNote: settings.paybill_account_note,
-  });
+    storeAddress: settings.store_address,
+    storeMapLink: settings.store_map_link,
+  };
 }
 
-// PATCH /api/settings — admin only. Body: { customizationFee?, paybillNumber?, paybillAccountNote? }
+// GET /api/settings — public. Used by the storefront at checkout, product customization,
+// and the "Visit Us" section.
+export async function GET() {
+  await ensureDefaultSettings();
+  const settings = await getSettings(PUBLIC_KEYS);
+  return NextResponse.json(shape(settings));
+}
+
+// PATCH /api/settings — admin only.
+// Body: { customizationFee?, paybillNumber?, paybillAccountNote?, storeAddress?, storeMapLink? }
 export async function PATCH(request) {
   try {
     requireAdmin(request);
 
-    const { customizationFee, paybillNumber, paybillAccountNote } = await request.json();
+    const { customizationFee, paybillNumber, paybillAccountNote, storeAddress, storeMapLink } = await request.json();
 
     if (customizationFee != null) {
       const fee = Number(customizationFee);
@@ -31,13 +39,11 @@ export async function PATCH(request) {
     }
     if (paybillNumber != null) await setSetting("paybill_number", String(paybillNumber).trim());
     if (paybillAccountNote != null) await setSetting("paybill_account_note", String(paybillAccountNote).trim());
+    if (storeAddress != null) await setSetting("store_address", String(storeAddress).trim());
+    if (storeMapLink != null) await setSetting("store_map_link", String(storeMapLink).trim());
 
     const settings = await getSettings(PUBLIC_KEYS);
-    return NextResponse.json({
-      customizationFee: Number(settings.customization_fee),
-      paybillNumber: settings.paybill_number,
-      paybillAccountNote: settings.paybill_account_note,
-    });
+    return NextResponse.json(shape(settings));
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: err.status });
     console.error(err);

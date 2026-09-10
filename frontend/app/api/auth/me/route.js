@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { connectDB } from "../../../../lib/mongodb";
 import { requireAuth, publicUser, AuthError } from "../../../../lib/auth";
 import User from "../../../../models/User";
-export const dynamic = 'force-dynamic';
 
 // GET /api/auth/me — returns the logged-in user (including role), based on the JWT.
 // The frontend calls this on load to check "is this a real admin?" rather than trusting

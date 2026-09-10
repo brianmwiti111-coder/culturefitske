@@ -5,6 +5,8 @@ const DEFAULTS = {
   customization_fee: "300",
   paybill_number: "",
   paybill_account_note: "Use your order number as the Account Number",
+  store_address: "",
+  store_map_link: "",
 };
 
 export async function getSettings(keys) {

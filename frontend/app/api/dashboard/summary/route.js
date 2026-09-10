@@ -3,7 +3,6 @@ import { connectDB } from "../../../../lib/mongodb";
 import { requireAdmin, AuthError } from "../../../../lib/auth";
 import Order from "../../../../models/Order";
 import Product from "../../../../models/Product";
-export const dynamic = 'force-dynamic';
 
 // GET /api/dashboard/summary — admin only
 export async function GET(request) {

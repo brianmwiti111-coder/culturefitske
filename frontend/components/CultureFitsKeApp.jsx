@@ -587,7 +587,7 @@ function Header({ view, setView, cartCount, wishlistCount, user, onLogout }) {
 // ---------------------------------------------------------------
 // HOME VIEW
 // ---------------------------------------------------------------
-function Home({ setView, openProduct, wishlist, toggleWishlist, products, customizationFee }) {
+function Home({ setView, openProduct, wishlist, toggleWishlist, products, customizationFee, storeAddress, storeMapLink }) {
   return (
     <div>
       {/* HERO */}
@@ -678,6 +678,29 @@ function Home({ setView, openProduct, wishlist, toggleWishlist, products, custom
           </div>
         </div>
       </section>
+
+      {/* VISIT US */}
+      {storeAddress && (
+        <section className="max-w-6xl mx-auto px-5 py-16">
+          <div style={{
+            background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 12, padding: 28,
+            display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 20,
+          }}>
+            <div>
+              <Badge tone="gold">Visit Us</Badge>
+              <h3 style={{ fontFamily: FONT_DISPLAY, fontSize: 24, color: C.white, textTransform: "uppercase", margin: "12px 0 6px" }}>
+                Come See the Kits in Person
+              </h3>
+              <p style={{ fontFamily: FONT_BODY, fontSize: 14, color: C.mute, margin: 0 }}>{storeAddress}</p>
+            </div>
+            {storeMapLink && (
+              <a href={storeMapLink} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                <Button>Get Directions</Button>
+              </a>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -2188,10 +2211,15 @@ function AdminProducts({ products, addProduct, removeProduct, updateStock, setCu
 // ---------------------------------------------------------------
 // ADMIN SHELL
 // ---------------------------------------------------------------
-function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote }) {
+function AdminSettings({
+  customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote,
+  storeAddress, setStoreAddress, storeMapLink, setStoreMapLink,
+}) {
   const [feeInput, setFeeInput] = useState(String(customizationFee));
   const [paybillInput, setPaybillInput] = useState(paybillNumber);
   const [noteInput, setNoteInput] = useState(paybillAccountNote);
+  const [addressInput, setAddressInput] = useState(storeAddress);
+  const [mapLinkInput, setMapLinkInput] = useState(storeMapLink);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -2204,6 +2232,8 @@ function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, s
       if (!Number.isNaN(fee) && fee >= 0) await setCustomizationFee(fee);
       await setPaybillNumber(paybillInput.trim());
       await setPaybillAccountNote(noteInput.trim());
+      await setStoreAddress(addressInput.trim());
+      await setStoreMapLink(mapLinkInput.trim());
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
     } catch (err) {
@@ -2246,6 +2276,28 @@ function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, s
         </div>
       </div>
 
+      <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 20 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, color: C.white, textTransform: "uppercase", marginBottom: 4 }}>Shop Location</div>
+        <p style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 12 }}>
+          Shown on the homepage and footer so customers can visit in person. The map link is optional but makes "Get Directions" work.
+        </p>
+        <div className="flex flex-col gap-3">
+          <div>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Address</div>
+            <input value={addressInput} onChange={(e) => setAddressInput(e.target.value)} placeholder="e.g. Shop 12, Sunrise Mall, Moi Avenue"
+              style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY }} />
+          </div>
+          <div>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Google Maps link (optional)</div>
+            <input value={mapLinkInput} onChange={(e) => setMapLinkInput(e.target.value)} placeholder="Paste a Google Maps share link"
+              style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY }} />
+            <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.mute, marginTop: 5 }}>
+              In Google Maps: search your shop → Share → Copy link.
+            </div>
+          </div>
+        </div>
+      </div>
+
       {error && (
         <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088" }}>{error}</div>
       )}
@@ -2260,6 +2312,7 @@ function AdminSettings({ customizationFee, setCustomizationFee, paybillNumber, s
 function AdminShell({
   token, products, addProduct, removeProduct, updateStock, setCustomizationPhoto,
   customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote,
+  storeAddress, setStoreAddress, storeMapLink, setStoreMapLink,
 }) {
   const [tab, setTab] = useState("dashboard");
   const tabs = [
@@ -2289,6 +2342,8 @@ function AdminShell({
           customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
           paybillNumber={paybillNumber} setPaybillNumber={setPaybillNumber}
           paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
+          storeAddress={storeAddress} setStoreAddress={setStoreAddress}
+          storeMapLink={storeMapLink} setStoreMapLink={setStoreMapLink}
         />
       )}
     </div>
@@ -2298,7 +2353,7 @@ function AdminShell({
 // ---------------------------------------------------------------
 // FOOTER
 // ---------------------------------------------------------------
-function Footer() {
+function Footer({ storeAddress }) {
   return (
     <footer style={{ borderTop: `1px solid ${C.line}`, marginTop: 40 }}>
       <div className="max-w-6xl mx-auto px-5 py-10 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -2306,7 +2361,9 @@ function Footer() {
           <Logo height={30} />
           <span style={{ fontFamily: FONT_DISPLAY, color: C.white, textTransform: "uppercase", fontSize: 14 }}>CultureFitsKe</span>
         </div>
-        <span style={{ fontFamily: FONT_BODY, color: C.mute, fontSize: 12 }}>Player & fan kits, made to order.</span>
+        <span style={{ fontFamily: FONT_BODY, color: C.mute, fontSize: 12, textAlign: "center" }}>
+          {storeAddress ? storeAddress : "Player & fan kits, made to order."}
+        </span>
       </div>
     </footer>
   );
@@ -2430,14 +2487,18 @@ export default function App() {
   const [customizationFee, setCustomizationFeeState] = useState(DEFAULT_CUSTOM_FEE);
   const [paybillNumber, setPaybillNumberState] = useState("");
   const [paybillAccountNote, setPaybillAccountNoteState] = useState("Use your order number as the Account Number");
+  const [storeAddress, setStoreAddressState] = useState("");
+  const [storeMapLink, setStoreMapLinkState] = useState("");
 
-  // Load store settings (customization fee, Paybill details) on mount — public endpoint.
+  // Load store settings (customization fee, Paybill details, shop address) on mount — public endpoint.
   useEffect(() => {
     apiFetch("/api/settings")
       .then((data) => {
         setCustomizationFeeState(data.customizationFee);
         setPaybillNumberState(data.paybillNumber);
         setPaybillAccountNoteState(data.paybillAccountNote);
+        setStoreAddressState(data.storeAddress);
+        setStoreMapLinkState(data.storeMapLink);
       })
       .catch(() => {});
   }, []);
@@ -2454,6 +2515,14 @@ export default function App() {
   const setPaybillAccountNote = async (value) => {
     setPaybillAccountNoteState(value);
     await apiFetch("/api/settings", { method: "PATCH", token, body: { paybillAccountNote: value } });
+  };
+  const setStoreAddress = async (value) => {
+    setStoreAddressState(value);
+    await apiFetch("/api/settings", { method: "PATCH", token, body: { storeAddress: value } });
+  };
+  const setStoreMapLink = async (value) => {
+    setStoreMapLinkState(value);
+    await apiFetch("/api/settings", { method: "PATCH", token, body: { storeMapLink: value } });
   };
 
   // Places a real order. Any customer-uploaded design images are uploaded to
@@ -2524,10 +2593,12 @@ export default function App() {
           customizationFee={customizationFee} setCustomizationFee={setCustomizationFee}
           paybillNumber={paybillNumber} setPaybillNumber={setPaybillNumber}
           paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
+          storeAddress={storeAddress} setStoreAddress={setStoreAddress}
+          storeMapLink={storeMapLink} setStoreMapLink={setStoreMapLink}
         />
       ) : (
         <>
-          {view === "home" && <Home setView={setView} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} customizationFee={customizationFee} />}
+          {view === "home" && <Home setView={setView} openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} customizationFee={customizationFee} storeAddress={storeAddress} storeMapLink={storeMapLink} />}
           {view === "shop" && <Shop openProduct={openProduct} wishlist={wishlist} toggleWishlist={toggleWishlist} products={products} loading={productsLoading} error={productsError} />}
           {view === "product" && activeProduct && <ProductDetail product={activeProduct} setView={setView} addToCart={addToCart} wishlist={wishlist} toggleWishlist={toggleWishlist} customizationFee={customizationFee} token={token} user={user} />}
           {view === "cart" && <Cart cart={cart} updateQty={updateQty} removeItem={removeItem} setView={setView} />}
@@ -2547,7 +2618,7 @@ export default function App() {
         </>
       )}
 
-      <Footer />
+      <Footer storeAddress={storeAddress} />
     </div>
   );
 }

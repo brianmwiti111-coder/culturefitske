@@ -4,6 +4,7 @@ import { connectDB } from "../../../../lib/mongodb";
 import { signToken, publicUser } from "../../../../lib/auth";
 import User from "../../../../models/User";
 
+
 export async function POST(request) {
   await connectDB();
   const { phone, password } = await request.json();

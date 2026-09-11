@@ -528,6 +528,18 @@ function Header({ view, setView, cartCount, wishlistCount, user, onLogout }) {
               My Orders
             </button>
           )}
+          {user && (
+            <button
+              onClick={() => setView("profile")}
+              style={{
+                background: "none", border: `1px solid ${C.line}`, borderRadius: 6,
+                color: C.mute, fontFamily: FONT_BODY, fontSize: 12, padding: "6px 10px",
+                cursor: "pointer", marginRight: 6,
+              }}
+            >
+              My Profile
+            </button>
+          )}
           {user ? (
             <button
               onClick={onLogout}
@@ -1456,12 +1468,119 @@ function MyOrders({ token, user, setView }) {
     </div>
   );
 }
+
+// ---------------------------------------------------------------
+// MY PROFILE — edit name/email, and change password (requires knowing
+// the current one; the separate forgot-password flow is for when you don't)
+// ---------------------------------------------------------------
+function MyProfile({ token, user, updateUserInfo, setView }) {
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState("");
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-5 py-24 text-center">
+        <p style={{ fontFamily: FONT_BODY, color: C.mute, marginBottom: 16 }}>Log in to view your profile.</p>
+        <Button onClick={() => setView("login")}>Log In</Button>
+      </div>
+    );
+  }
+
+  const saveProfile = async () => {
+    setProfileError("");
+    setSavingProfile(true);
+    try {
+      const data = await apiFetch("/api/auth/me", { method: "PATCH", token, body: { name, email } });
+      updateUserInfo(data.user);
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 1800);
+    } catch (err) {
+      setProfileError(err.message || "Could not save your profile.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const changePassword = async () => {
+    setPasswordError("");
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirmation don't match.");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await apiFetch("/api/auth/change-password", { method: "POST", token, body: { currentPassword, newPassword } });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordSaved(true);
+      setTimeout(() => setPasswordSaved(false), 1800);
+    } catch (err) {
+      setPasswordError(err.message || "Could not change your password.");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto px-5 py-14">
+      <SectionLabel eyebrow="Your account" title="My Profile" />
+
+      <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 20, marginBottom: 20 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: C.white, textTransform: "uppercase", marginBottom: 14 }}>Profile Details</div>
+        <div className="flex flex-col gap-4 mb-4">
+          <Field label="Full name" value={name} onChange={setName} placeholder="Your name" />
+          <Field label="Email (optional)" value={email} onChange={setEmail} placeholder="you@example.com" />
+          <div>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Phone number</div>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 14, color: C.mute, padding: "11px 0" }}>{user.phone} (contact us to change this)</div>
+          </div>
+        </div>
+        {profileError && <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088", marginBottom: 12 }}>{profileError}</div>}
+        <Button onClick={saveProfile} disabled={savingProfile || !name.trim()}>
+          {savingProfile ? "Saving..." : profileSaved ? <><Check size={16} /> Saved</> : "Save Profile"}
+        </Button>
+      </div>
+
+      <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 20 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, color: C.white, textTransform: "uppercase", marginBottom: 14 }}>Change Password</div>
+        <div className="flex flex-col gap-4 mb-4">
+          <Field label="Current password" type="password" value={currentPassword} onChange={setCurrentPassword} placeholder="Your current password" />
+          <Field label="New password" type="password" value={newPassword} onChange={setNewPassword} placeholder="At least 6 characters" />
+          <Field label="Confirm new password" type="password" value={confirmPassword} onChange={setConfirmPassword} placeholder="Re-enter new password" />
+        </div>
+        {passwordError && <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088", marginBottom: 12 }}>{passwordError}</div>}
+        <Button onClick={changePassword} disabled={savingPassword || !currentPassword || newPassword.length < 6}>
+          {savingPassword ? "Saving..." : passwordSaved ? <><Check size={16} /> Password Changed</> : "Change Password"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------
+// LOGIN / REGISTER / FORGOT PASSWORD — real accounts, checked against the
+// backend. This is what actually decides who can see the admin panel: the
 // server tells us the account's role, the frontend never assumes it.
 // ---------------------------------------------------------------
 function Login({ setView, onAuthed }) {
-  const [mode, setMode] = useState("login"); // "login" | "register"
+  const [mode, setMode] = useState("login"); // "login" | "register" | "forgot"
+  const [forgotStep, setForgotStep] = useState("request"); // "request" | "verify"
   const [form, setForm] = useState({ name: "", phone: "", email: "", password: "" });
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
@@ -1494,9 +1613,107 @@ function Login({ setView, onAuthed }) {
     }
   };
 
+  const requestCode = async () => {
+    setError("");
+    setInfo("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: form.phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        return;
+      }
+      setInfo("If that phone number has an account, we've sent a reset code via WhatsApp (or SMS).");
+      setForgotStep("verify");
+    } catch (err) {
+      setError("Could not reach the server. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitReset = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: form.phone, code, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        return;
+      }
+      onAuthed(data.token, data.user);
+      setView("home");
+    } catch (err) {
+      setError("Could not reach the server. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const backToLogin = () => {
+    setMode("login");
+    setForgotStep("request");
+    setError("");
+    setInfo("");
+    setCode("");
+    setNewPassword("");
+  };
+
   const canSubmit = mode === "login"
     ? form.phone && form.password
     : form.name && form.phone && form.password.length >= 6;
+
+  if (mode === "forgot") {
+    return (
+      <div className="max-w-sm mx-auto px-5 py-16">
+        <SectionLabel eyebrow="Your account" title="Reset Password" />
+
+        {forgotStep === "request" ? (
+          <>
+            <p style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.mute, marginBottom: 16 }}>
+              Enter the phone number on your account — we'll send a reset code via WhatsApp (or SMS).
+            </p>
+            <div className="mb-5">
+              <Field label="Phone number" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="07XX XXX XXX" />
+            </div>
+            {error && <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#ff9088", marginBottom: 16 }}>{error}</div>}
+            <Button full disabled={!form.phone || loading} onClick={requestCode}>
+              {loading ? "Sending..." : "Send Reset Code"}
+            </Button>
+          </>
+        ) : (
+          <>
+            {info && <p style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.mute, marginBottom: 16 }}>{info}</p>}
+            <div className="flex flex-col gap-4 mb-5">
+              <Field label="Reset code" value={code} onChange={setCode} placeholder="6-digit code" />
+              <Field label="New password" type="password" value={newPassword} onChange={setNewPassword} placeholder="At least 6 characters" />
+            </div>
+            {error && <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#ff9088", marginBottom: 16 }}>{error}</div>}
+            <Button full disabled={!code || newPassword.length < 6 || loading} onClick={submitReset}>
+              {loading ? "Please wait..." : "Set New Password"}
+            </Button>
+            <button onClick={requestCode} disabled={loading} style={{ background: "none", border: "none", color: C.mute, fontFamily: FONT_BODY, fontSize: 12, marginTop: 14, cursor: "pointer", padding: 0 }}>
+              Didn't get a code? Send again
+            </button>
+          </>
+        )}
+
+        <button onClick={backToLogin} style={{ background: "none", border: "none", color: C.gold, fontFamily: FONT_BODY, fontSize: 13, marginTop: 20, cursor: "pointer", padding: 0, display: "block" }}>
+          ← Back to log in
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-sm mx-auto px-5 py-16">
@@ -1523,6 +1740,12 @@ function Login({ setView, onAuthed }) {
         )}
         <Field label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder={mode === "register" ? "At least 6 characters" : "Your password"} />
       </div>
+
+      {mode === "login" && (
+        <button onClick={() => { setMode("forgot"); setError(""); }} style={{ background: "none", border: "none", color: C.mute, fontFamily: FONT_BODY, fontSize: 12, marginBottom: 16, cursor: "pointer", padding: 0, display: "block" }}>
+          Forgot password?
+        </button>
+      )}
 
       {error && (
         <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#ff9088", marginBottom: 16 }}>{error}</div>
@@ -2434,6 +2657,8 @@ export default function App() {
     if (view === "admin") setView("home");
   };
 
+  const updateUserInfo = (updatedUser) => setUser(updatedUser);
+
   const openProduct = (id) => { setActiveProductId(id); setView("product"); };
   const activeProduct = useMemo(() => products.find((p) => p.id === activeProductId), [activeProductId, products]);
 
@@ -2607,6 +2832,7 @@ export default function App() {
           {view === "confirmed" && <OrderConfirmed setView={setView} paybillNumber={paybillNumber} paybillAccountNote={paybillAccountNote} />}
           {view === "login" && <Login setView={setView} onAuthed={handleAuthed} />}
           {view === "myOrders" && <MyOrders token={token} user={user} setView={setView} />}
+          {view === "profile" && <MyProfile token={token} user={user} updateUserInfo={updateUserInfo} setView={setView} />}
           {view === "admin" && !isAdmin && (
             <div className="max-w-md mx-auto px-5 py-24 text-center">
               <p style={{ fontFamily: FONT_BODY, color: C.mute, marginBottom: 16 }}>

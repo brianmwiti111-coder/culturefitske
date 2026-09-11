@@ -6,6 +6,8 @@ const UserSchema = new mongoose.Schema({
   email: { type: String },
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ["customer", "admin"], default: "customer" },
+  resetCodeHash: { type: String, default: null },   // hashed 6-digit code for forgot-password
+  resetCodeExpires: { type: Date, default: null },
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model("User", UserSchema);

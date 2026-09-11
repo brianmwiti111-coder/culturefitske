@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "../../../lib/mongodb";
 import { requireAuth, requireAdmin, AuthError } from "../../../lib/auth";
 import { getCustomizationFee } from "../../../lib/settings";
+import { rateLimit } from "../../../lib/rateLimit";
 import Product from "../../../models/Product";
 import Order from "../../../models/Order";
 
@@ -21,6 +22,13 @@ export async function POST(request) {
   try {
     const user = requireAuth(request);
     await connectDB();
+
+    // 10 orders per hour per account — plenty for real shopping, blocks a
+    // script from spamming order requests (each one reserves real stock).
+    const { success } = await rateLimit(`order:${user.id}`, { limit: 10, windowSeconds: 3600 });
+    if (!success) {
+      return NextResponse.json({ error: "Too many orders placed recently. Please try again later." }, { status: 429 });
+    }
 
     const { items, deliveryLocation, deliveryNotes, contactPhone, paymentMethod } = await request.json();
 

@@ -1,43 +1,15 @@
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+// Simple in-memory rate limiter, keyed per action + actor (e.g. "login:1.2.3.4"
+// or "review:<userId>"). This runs with zero setup and no extra dependencies.
+//
+// One honest limitation: on Vercel, each serverless function instance has its
+// own memory, so this is best-effort in production (a request that lands on a
+// fresh/different instance resets the count) rather than a hard guarantee.
+// That's an acceptable trade-off for a store this size. If you outgrow it,
+// a persistent store like Upstash Redis can be dropped in behind this same
+// function signature later — ask and it can be added when you're ready to
+// install the extra package for it.
 
-// Prefer Upstash Redis — it works correctly across every serverless function
-// instance, which is what actually matters on Vercel. Without it, this falls
-// back to an in-memory limiter that's fine for local dev but only
-// best-effort in production, since each function instance has its own
-// memory. Add UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN (free tier
-// at upstash.com) to get the real guarantee.
-const hasUpstash = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-
-const upstashLimiters = new Map();
-function getUpstashLimiter(limit, windowSeconds) {
-  const key = `${limit}:${windowSeconds}`;
-  if (!upstashLimiters.has(key)) {
-    const redis = Redis.fromEnv();
-    upstashLimiters.set(key, new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
-      analytics: false,
-    }));
-  }
-  return upstashLimiters.get(key);
-}
-
-// In-memory fallback: identifier -> array of recent request timestamps (ms).
-const memoryStore = new Map();
-function memoryRateLimit(identifier, limit, windowSeconds) {
-  const now = Date.now();
-  const windowMs = windowSeconds * 1000;
-  const timestamps = (memoryStore.get(identifier) || []).filter((t) => now - t < windowMs);
-
-  if (timestamps.length >= limit) {
-    memoryStore.set(identifier, timestamps);
-    return { success: false, remaining: 0 };
-  }
-  timestamps.push(now);
-  memoryStore.set(identifier, timestamps);
-  return { success: true, remaining: limit - timestamps.length };
-}
+const memoryStore = new Map(); // identifier -> array of recent request timestamps (ms)
 
 // Best-effort client IP from a Next.js Request. Vercel sets x-forwarded-for.
 export function getClientIp(request) {
@@ -50,10 +22,15 @@ export function getClientIp(request) {
 // `login:${ip}` or `review:${userId}` — so different endpoints never share
 // a bucket by accident.
 export async function rateLimit(identifier, { limit, windowSeconds }) {
-  if (hasUpstash) {
-    const limiter = getUpstashLimiter(limit, windowSeconds);
-    const result = await limiter.limit(identifier);
-    return { success: result.success, remaining: result.remaining };
+  const now = Date.now();
+  const windowMs = windowSeconds * 1000;
+  const timestamps = (memoryStore.get(identifier) || []).filter((t) => now - t < windowMs);
+
+  if (timestamps.length >= limit) {
+    memoryStore.set(identifier, timestamps);
+    return { success: false, remaining: 0 };
   }
-  return memoryRateLimit(identifier, limit, windowSeconds);
+  timestamps.push(now);
+  memoryStore.set(identifier, timestamps);
+  return { success: true, remaining: limit - timestamps.length };
 }

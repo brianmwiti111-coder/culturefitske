@@ -7,6 +7,7 @@ const DEFAULTS = {
   paybill_account_note: "Use your order number as the Account Number",
   store_address: "",
   store_map_link: "",
+  contact_whatsapp_number: "",
 };
 
 export async function getSettings(keys) {

@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { requireAdmin, AuthError } from "../../../lib/auth";
 import { getSettings, setSetting, ensureDefaultSettings } from "../../../lib/settings";
 
-const PUBLIC_KEYS = ["customization_fee", "paybill_number", "paybill_account_note", "store_address", "store_map_link"];
+const PUBLIC_KEYS = [
+  "customization_fee", "paybill_number", "paybill_account_note",
+  "store_address", "store_map_link", "contact_whatsapp_number",
+];
 
 function shape(settings) {
   return {
@@ -11,11 +14,12 @@ function shape(settings) {
     paybillAccountNote: settings.paybill_account_note,
     storeAddress: settings.store_address,
     storeMapLink: settings.store_map_link,
+    contactWhatsappNumber: settings.contact_whatsapp_number,
   };
 }
 
 // GET /api/settings — public. Used by the storefront at checkout, product customization,
-// and the "Visit Us" section.
+// the "Visit Us" section, and the "Contact Us" button.
 export async function GET() {
   await ensureDefaultSettings();
   const settings = await getSettings(PUBLIC_KEYS);
@@ -23,12 +27,12 @@ export async function GET() {
 }
 
 // PATCH /api/settings — admin only.
-// Body: { customizationFee?, paybillNumber?, paybillAccountNote?, storeAddress?, storeMapLink? }
+// Body: { customizationFee?, paybillNumber?, paybillAccountNote?, storeAddress?, storeMapLink?, contactWhatsappNumber? }
 export async function PATCH(request) {
   try {
     requireAdmin(request);
 
-    const { customizationFee, paybillNumber, paybillAccountNote, storeAddress, storeMapLink } = await request.json();
+    const { customizationFee, paybillNumber, paybillAccountNote, storeAddress, storeMapLink, contactWhatsappNumber } = await request.json();
 
     if (customizationFee != null) {
       const fee = Number(customizationFee);
@@ -41,6 +45,7 @@ export async function PATCH(request) {
     if (paybillAccountNote != null) await setSetting("paybill_account_note", String(paybillAccountNote).trim());
     if (storeAddress != null) await setSetting("store_address", String(storeAddress).trim());
     if (storeMapLink != null) await setSetting("store_map_link", String(storeMapLink).trim());
+    if (contactWhatsappNumber != null) await setSetting("contact_whatsapp_number", String(contactWhatsappNumber).trim());
 
     const settings = await getSettings(PUBLIC_KEYS);
     return NextResponse.json(shape(settings));

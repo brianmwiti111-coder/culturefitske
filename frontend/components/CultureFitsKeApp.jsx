@@ -455,7 +455,7 @@ function Logo({ height = 40 }) {
 // ---------------------------------------------------------------
 // HEADER / NAV
 // ---------------------------------------------------------------
-function Header({ view, setView, cartCount, wishlistCount, user, onLogout }) {
+function Header({ view, setView, cartCount, wishlistCount, user, onLogout, contactWhatsappNumber }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = user?.role === "admin";
   const nav = [
@@ -563,6 +563,23 @@ function Header({ view, setView, cartCount, wishlistCount, user, onLogout }) {
             >
               Log In
             </button>
+          )}
+          {contactWhatsappNumber && (
+            <a
+              href={`https://wa.me/${contactWhatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("Hi CultureFitsKe, I have a question:")}`}
+              target="_blank"
+              rel="noreferrer"
+              title="Ask us a question on WhatsApp"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "none", border: `1px solid ${C.line}`, borderRadius: 6,
+                color: C.white, fontFamily: FONT_BODY, fontSize: 12, padding: "6px 10px",
+                cursor: "pointer", marginRight: 6, textDecoration: "none",
+              }}
+            >
+              <MessageCircle size={14} color={C.gold} />
+              <span className="hidden sm:inline">Contact Us</span>
+            </a>
           )}
           <button onClick={() => setView("cart")} style={{ position: "relative", background: "none", border: "none", cursor: "pointer", padding: 8 }}>
             <ShoppingCart size={22} color={C.white} />
@@ -1487,6 +1504,14 @@ function MyProfile({ token, user, updateUserInfo, setView }) {
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
+  const [changingPhone, setChangingPhone] = useState(false);
+  const [phoneStep, setPhoneStep] = useState("request"); // "request" | "verify"
+  const [newPhone, setNewPhone] = useState("");
+  const [phoneCode, setPhoneCode] = useState("");
+  const [phoneInfo, setPhoneInfo] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [phoneLoading, setPhoneLoading] = useState(false);
+
   if (!user) {
     return (
       <div className="max-w-md mx-auto px-5 py-24 text-center">
@@ -1532,6 +1557,48 @@ function MyProfile({ token, user, updateUserInfo, setView }) {
     }
   };
 
+  const requestPhoneChange = async () => {
+    setPhoneError("");
+    setPhoneInfo("");
+    setPhoneLoading(true);
+    try {
+      const data = await apiFetch("/api/auth/change-phone/request", { method: "POST", token, body: { newPhone } });
+      setPhoneInfo(data.message || "A verification code has been sent to your new number.");
+      setPhoneStep("verify");
+    } catch (err) {
+      setPhoneError(err.message || "Could not send a verification code.");
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
+  const confirmPhoneChange = async () => {
+    setPhoneError("");
+    setPhoneLoading(true);
+    try {
+      const data = await apiFetch("/api/auth/change-phone/confirm", { method: "POST", token, body: { code: phoneCode } });
+      updateUserInfo(data.user);
+      setChangingPhone(false);
+      setPhoneStep("request");
+      setNewPhone("");
+      setPhoneCode("");
+      setPhoneInfo("");
+    } catch (err) {
+      setPhoneError(err.message || "Could not confirm your new number.");
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
+  const cancelPhoneChange = () => {
+    setChangingPhone(false);
+    setPhoneStep("request");
+    setNewPhone("");
+    setPhoneCode("");
+    setPhoneInfo("");
+    setPhoneError("");
+  };
+
   return (
     <div className="max-w-md mx-auto px-5 py-14">
       <SectionLabel eyebrow="Your account" title="My Profile" />
@@ -1543,7 +1610,57 @@ function MyProfile({ token, user, updateUserInfo, setView }) {
           <Field label="Email (optional)" value={email} onChange={setEmail} placeholder="you@example.com" />
           <div>
             <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Phone number</div>
-            <div style={{ fontFamily: FONT_BODY, fontSize: 14, color: C.mute, padding: "11px 0" }}>{user.phone} (contact us to change this)</div>
+            {!changingPhone ? (
+              <div className="flex items-center gap-3">
+                <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: C.white }}>{user.phone}</span>
+                <button
+                  onClick={() => setChangingPhone(true)}
+                  style={{ background: "none", border: "none", color: C.gold, fontFamily: FONT_BODY, fontSize: 12, cursor: "pointer", padding: 0 }}
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 8, padding: 14, marginTop: 6 }}>
+                {phoneStep === "request" ? (
+                  <>
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 8 }}>
+                      We'll send a verification code to your new number via WhatsApp (or SMS) before switching it over.
+                    </div>
+                    <input
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      placeholder="New phone number"
+                      style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY, marginBottom: 10 }}
+                    />
+                    {phoneError && <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088", marginBottom: 10 }}>{phoneError}</div>}
+                    <div className="flex gap-2">
+                      <Button onClick={requestPhoneChange} disabled={!newPhone.trim() || phoneLoading} style={{ padding: "8px 14px", fontSize: 12 }}>
+                        {phoneLoading ? "Sending..." : "Send Code"}
+                      </Button>
+                      <Button variant="ghost" onClick={cancelPhoneChange} style={{ padding: "8px 14px", fontSize: 12 }}>Cancel</Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {phoneInfo && <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 10 }}>{phoneInfo}</div>}
+                    <input
+                      value={phoneCode}
+                      onChange={(e) => setPhoneCode(e.target.value)}
+                      placeholder="6-digit code"
+                      style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY, marginBottom: 10 }}
+                    />
+                    {phoneError && <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088", marginBottom: 10 }}>{phoneError}</div>}
+                    <div className="flex gap-2">
+                      <Button onClick={confirmPhoneChange} disabled={!phoneCode || phoneLoading} style={{ padding: "8px 14px", fontSize: 12 }}>
+                        {phoneLoading ? "Confirming..." : "Confirm New Number"}
+                      </Button>
+                      <Button variant="ghost" onClick={cancelPhoneChange} style={{ padding: "8px 14px", fontSize: 12 }}>Cancel</Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {profileError && <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088", marginBottom: 12 }}>{profileError}</div>}
@@ -2437,12 +2554,14 @@ function AdminProducts({ products, addProduct, removeProduct, updateStock, setCu
 function AdminSettings({
   customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote,
   storeAddress, setStoreAddress, storeMapLink, setStoreMapLink,
+  contactWhatsappNumber, setContactWhatsappNumber,
 }) {
   const [feeInput, setFeeInput] = useState(String(customizationFee));
   const [paybillInput, setPaybillInput] = useState(paybillNumber);
   const [noteInput, setNoteInput] = useState(paybillAccountNote);
   const [addressInput, setAddressInput] = useState(storeAddress);
   const [mapLinkInput, setMapLinkInput] = useState(storeMapLink);
+  const [contactInput, setContactInput] = useState(contactWhatsappNumber);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -2457,6 +2576,7 @@ function AdminSettings({
       await setPaybillAccountNote(noteInput.trim());
       await setStoreAddress(addressInput.trim());
       await setStoreMapLink(mapLinkInput.trim());
+      await setContactWhatsappNumber(contactInput.trim());
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
     } catch (err) {
@@ -2521,6 +2641,18 @@ function AdminSettings({
         </div>
       </div>
 
+      <div style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 20 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, color: C.white, textTransform: "uppercase", marginBottom: 4 }}>Contact Us (WhatsApp)</div>
+        <p style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 12 }}>
+          Adds a "Contact Us" button to the header, so customers can message you directly on WhatsApp with questions. Leave blank to hide the button.
+        </p>
+        <div>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>WhatsApp number</div>
+          <input value={contactInput} onChange={(e) => setContactInput(e.target.value)} placeholder="e.g. 0712345678"
+            style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY }} />
+        </div>
+      </div>
+
       {error && (
         <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088" }}>{error}</div>
       )}
@@ -2536,6 +2668,7 @@ function AdminShell({
   token, products, addProduct, removeProduct, updateStock, setCustomizationPhoto,
   customizationFee, setCustomizationFee, paybillNumber, setPaybillNumber, paybillAccountNote, setPaybillAccountNote,
   storeAddress, setStoreAddress, storeMapLink, setStoreMapLink,
+  contactWhatsappNumber, setContactWhatsappNumber,
 }) {
   const [tab, setTab] = useState("dashboard");
   const tabs = [
@@ -2567,6 +2700,7 @@ function AdminShell({
           paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
           storeAddress={storeAddress} setStoreAddress={setStoreAddress}
           storeMapLink={storeMapLink} setStoreMapLink={setStoreMapLink}
+          contactWhatsappNumber={contactWhatsappNumber} setContactWhatsappNumber={setContactWhatsappNumber}
         />
       )}
     </div>
@@ -2714,8 +2848,9 @@ export default function App() {
   const [paybillAccountNote, setPaybillAccountNoteState] = useState("Use your order number as the Account Number");
   const [storeAddress, setStoreAddressState] = useState("");
   const [storeMapLink, setStoreMapLinkState] = useState("");
+  const [contactWhatsappNumber, setContactWhatsappNumberState] = useState("");
 
-  // Load store settings (customization fee, Paybill details, shop address) on mount — public endpoint.
+  // Load store settings (customization fee, Paybill details, shop address, contact number) on mount — public endpoint.
   useEffect(() => {
     apiFetch("/api/settings")
       .then((data) => {
@@ -2724,6 +2859,7 @@ export default function App() {
         setPaybillAccountNoteState(data.paybillAccountNote);
         setStoreAddressState(data.storeAddress);
         setStoreMapLinkState(data.storeMapLink);
+        setContactWhatsappNumberState(data.contactWhatsappNumber);
       })
       .catch(() => {});
   }, []);
@@ -2748,6 +2884,10 @@ export default function App() {
   const setStoreMapLink = async (value) => {
     setStoreMapLinkState(value);
     await apiFetch("/api/settings", { method: "PATCH", token, body: { storeMapLink: value } });
+  };
+  const setContactWhatsappNumber = async (value) => {
+    setContactWhatsappNumberState(value);
+    await apiFetch("/api/settings", { method: "PATCH", token, body: { contactWhatsappNumber: value } });
   };
 
   // Places a real order. Any customer-uploaded design images are uploaded to
@@ -2809,7 +2949,7 @@ export default function App() {
         body { margin: 0; }
       `}</style>
 
-      <Header view={view} setView={setView} cartCount={cart.reduce((s, i) => s + i.qty, 0)} wishlistCount={wishlist.length} user={user} onLogout={handleLogout} />
+      <Header view={view} setView={setView} cartCount={cart.reduce((s, i) => s + i.qty, 0)} wishlistCount={wishlist.length} user={user} onLogout={handleLogout} contactWhatsappNumber={contactWhatsappNumber} />
 
       {showAdmin ? (
         <AdminShell
@@ -2820,6 +2960,7 @@ export default function App() {
           paybillAccountNote={paybillAccountNote} setPaybillAccountNote={setPaybillAccountNote}
           storeAddress={storeAddress} setStoreAddress={setStoreAddress}
           storeMapLink={storeMapLink} setStoreMapLink={setStoreMapLink}
+          contactWhatsappNumber={contactWhatsappNumber} setContactWhatsappNumber={setContactWhatsappNumber}
         />
       ) : (
         <>

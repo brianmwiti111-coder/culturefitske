@@ -678,7 +678,7 @@ function Home({ setView, openProduct, wishlist, toggleWishlist, products, custom
           {[
             { t: "Player Version", p: "KSh 1,500", d: "Match-spec cut, premium finish." },
             { t: "Fan Version", p: "KSh 1,300", d: "Everyday comfort, same colours." },
-            { t: "Kids Set", p: "KSh 1,300", d: "Jersey + shorts, sized for juniors." },
+            { t: "Kids Set", p: "KSh 1,000", d: "Jersey + shorts, sized for juniors." },
           ].map((k) => (
             <div key={k.t} style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 24 }}>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: C.white, textTransform: "uppercase" }}>{k.t}</div>

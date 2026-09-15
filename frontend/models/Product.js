@@ -8,9 +8,17 @@ const VariantSchema = new mongoose.Schema({
 }, { _id: false });
 
 const ProductSchema = new mongoose.Schema({
-  team: { type: String, required: true },
-  kitType: { type: String, enum: ["Home", "Away", "Third"], required: true },
-  version: { type: String, enum: ["Player Version", "Fan Version", "Kids Set"], required: true },
+  // "Team / name" — required for jersey versions (identifies the club), optional
+  // for accessory items like plain tracksuits or tracks where there's no team.
+  team: { type: String, default: "" },
+  // Only meaningful for jersey versions (Home/Away/Third kit). Left null for
+  // accessory items like tracksuits/tracks, which don't have a kit side.
+  kitType: { type: String, enum: ["Home", "Away", "Third", null], default: null },
+  version: {
+    type: String,
+    enum: ["Player Version", "Fan Version", "Kids Set", "Tracksuit", "Retro Jersey", "Tracks"],
+    required: true,
+  },
   name: { type: String, required: true },
   price: { type: Number, required: true },
   accent: { type: String },

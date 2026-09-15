@@ -7,6 +7,8 @@ import Review from "../../../models/Review";
 
 const SIZES = ["S", "M", "L", "XL", "2XL", "3XL"];
 const SLEEVES = ["Short", "Long"];
+const KIT_VERSIONS = ["Player Version", "Fan Version", "Kids Set"]; // these need team + Home/Away/Third
+const VALID_VERSIONS = [...KIT_VERSIONS, "Tracksuit", "Retro Jersey", "Tracks"];
 
 function defaultVariants() {
   const variants = [];
@@ -41,17 +43,18 @@ export async function GET(request) {
   return NextResponse.json(hydrated);
 }
 
-// POST /api/products — admin only. multipart/form-data: team, kitType, version, price,
-// accent, accent2, photos (File, repeated, min 3), variants (JSON string, optional —
-// [{size, sleeve, stock}], only the sizes/sleeves this kit actually comes in)
+// POST /api/products — admin only. multipart/form-data: team (optional for
+// non-kit versions), kitType (only for Player/Fan/Kids Set versions), version,
+// price, accent, accent2, photos (File, repeated, min 3), variants (JSON string,
+// optional — [{size, sleeve, stock}], only the sizes/sleeves this item actually comes in)
 export async function POST(request) {
   try {
     requireAdmin(request);
     await connectDB();
 
     const form = await request.formData();
-    const team = form.get("team");
-    const kitType = form.get("kitType");
+    const team = (form.get("team") || "").toString().trim();
+    const kitTypeRaw = form.get("kitType");
     const version = form.get("version");
     const price = Number(form.get("price"));
     const accent = form.get("accent") || null;
@@ -60,9 +63,19 @@ export async function POST(request) {
     const variantsRaw = form.get("variants");
     const customizationPhotoIndex = form.get("customizationPhotoIndex");
 
-    if (!team || !kitType || !version || !price) {
-      return NextResponse.json({ error: "team, kitType, version and price are required." }, { status: 400 });
+    if (!version || !VALID_VERSIONS.includes(version) || !price) {
+      return NextResponse.json({ error: "A valid version and price are required." }, { status: 400 });
     }
+
+    const isKitVersion = KIT_VERSIONS.includes(version);
+    let kitType = null;
+    if (isKitVersion) {
+      if (!team || !kitTypeRaw || !["Home", "Away", "Third"].includes(kitTypeRaw)) {
+        return NextResponse.json({ error: "Team and Kit (Home/Away/Third) are required for player, fan, and kids kits." }, { status: 400 });
+      }
+      kitType = kitTypeRaw;
+    }
+
     if (files.length < 3) {
       return NextResponse.json({ error: "Upload at least 3 product photos." }, { status: 400 });
     }
@@ -85,9 +98,17 @@ export async function POST(request) {
     const idx = Number(customizationPhotoIndex);
     const customizationPhoto = Number.isInteger(idx) && photos[idx] ? photos[idx] : null;
 
+    // Naming: kit versions keep the "Team Home/Away/Third Kit" pattern.
+    // Accessory versions (Tracksuit, Retro Jersey, Tracks) use "Team Version" if a
+    // team/name was given (e.g. "Kenya Tracksuit"), or just the version on its own
+    // (e.g. "Tracks") when there's no natural team to attach.
+    const name = isKitVersion
+      ? `${team} ${kitType} Kit`
+      : (team ? `${team} ${version}` : version);
+
     const product = await Product.create({
       team, kitType, version, accent, accent2, photos, customizationPhoto,
-      name: `${team} ${kitType} Kit`,
+      name,
       price,
       variants,
     });

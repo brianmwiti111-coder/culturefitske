@@ -55,6 +55,16 @@ function makeStock() {
 }
 
 const KIT_TYPES = ["Home", "Away", "Third"];
+const KIT_VERSIONS = ["Player Version", "Fan Version", "Kids Set"]; // need team + Home/Away/Third
+const VERSION_OPTIONS = [...KIT_VERSIONS, "Tracksuit", "Retro Jersey", "Tracks"];
+const VERSION_DEFAULT_PRICE = {
+  "Player Version": 1500,
+  "Fan Version": 1300,
+  "Kids Set": 1300,
+  "Tracksuit": 2500,
+  "Retro Jersey": 2500,
+  "Tracks": 800,
+};
 
 const TEAMS = [
   { id: "coastal", name: "Coastal FC", kits: { Home: [C.red, C.blueDeep], Away: [C.blue, "#0a1530"], Third: [C.gold, C.redDeep] } },
@@ -668,7 +678,7 @@ function Home({ setView, openProduct, wishlist, toggleWishlist, products, custom
           {[
             { t: "Player Version", p: "KSh 1,500", d: "Match-spec cut, premium finish." },
             { t: "Fan Version", p: "KSh 1,300", d: "Everyday comfort, same colours." },
-            { t: "Kids Set", p: "KSh 1,000", d: "Jersey + shorts, sized for juniors." },
+            { t: "Kids Set", p: "KSh 1,300", d: "Jersey + shorts, sized for juniors." },
           ].map((k) => (
             <div key={k.t} style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 24 }}>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: C.white, textTransform: "uppercase" }}>{k.t}</div>
@@ -761,9 +771,11 @@ function ProductGrid({ products, openProduct, wishlist, toggleWishlist }) {
               <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>
                 {out ? <Badge tone="red">Sold Out</Badge> : low ? <Badge tone="red">Low Stock</Badge> : null}
               </div>
-              <div style={{ position: "absolute", bottom: 10, left: 10, zIndex: 2 }}>
-                <Badge tone="mute">{p.kit} Kit</Badge>
-              </div>
+              {p.kit && (
+                <div style={{ position: "absolute", bottom: 10, left: 10, zIndex: 2 }}>
+                  <Badge tone="mute">{p.kit} Kit</Badge>
+                </div>
+              )}
               {p.photos && p.photos.length > 0 ? (
                 <img src={p.photos[0]} alt={p.name} style={{ width: "100%", height: 200, objectFit: "cover", display: "block" }} />
               ) : (
@@ -794,8 +806,8 @@ function Shop({ openProduct, wishlist, toggleWishlist, products, loading, error 
   const [team, setTeam] = useState("All");
   const [kit, setKit] = useState("All");
   const [filter, setFilter] = useState("All");
-  const types = ["All", "Player Version", "Fan Version", "Kids Set"];
-  const teamOptions = ["All", ...Array.from(new Set(products.map((p) => p.team)))];
+  const types = ["All", ...VERSION_OPTIONS];
+  const teamOptions = ["All", ...Array.from(new Set(products.map((p) => p.team).filter(Boolean)))];
   const kitOptions = ["All", ...KIT_TYPES];
 
   const filtered = products.filter((p) =>
@@ -955,7 +967,9 @@ function ProductDetail({ product, setView, addToCart, wishlist, toggleWishlist, 
         </div>
 
         <div>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.gold, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{product.team} · {product.kit} Kit · {product.type}</div>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.gold, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {[product.team, product.kit ? `${product.kit} Kit` : null, product.type].filter(Boolean).join(" · ")}
+          </div>
           <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 34, color: C.white, textTransform: "uppercase", margin: "4px 0 8px" }}>{product.name}</h1>
           <div className="flex items-center gap-3 mb-4">
             <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, color: C.gold }}>KSh {total.toLocaleString()}</span>
@@ -2072,7 +2086,9 @@ function AddProductForm({ addProduct, products }) {
   const toggleSize = (size) => setSelectedSizes((s) => s.includes(size) ? s.filter((x) => x !== size) : [...s, size]);
   const toggleSleeve = (sleeve) => setSelectedSleeves((s) => s.includes(sleeve) ? s.filter((x) => x !== sleeve) : [...s, sleeve]);
 
-  const canSave = form.team.trim() && form.photoFiles.length >= MIN_PHOTOS && selectedSizes.length > 0 && selectedSleeves.length > 0 && !saving;
+  const isKitVersion = KIT_VERSIONS.includes(form.version);
+  const canSave = form.photoFiles.length >= MIN_PHOTOS && selectedSizes.length > 0 && selectedSleeves.length > 0 && !saving &&
+    (!isKitVersion || form.team.trim()); // team is only required for Player/Fan/Kids kits
 
   const handleAdd = async () => {
     if (!canSave) return;
@@ -2081,7 +2097,7 @@ function AddProductForm({ addProduct, products }) {
     try {
       const fd = new FormData();
       fd.append("team", form.team.trim());
-      fd.append("kitType", form.kit);
+      if (isKitVersion) fd.append("kitType", form.kit);
       fd.append("version", form.version);
       fd.append("price", String(Number(form.price) || 0));
       fd.append("accent", form.accent);
@@ -2105,7 +2121,7 @@ function AddProductForm({ addProduct, products }) {
       setCustomizationPhotoIndex(null);
       setOpen(false);
     } catch (err) {
-      setError(err.message || "Could not save this kit. Please try again.");
+      setError(err.message || "Could not save this item. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -2114,18 +2130,40 @@ function AddProductForm({ addProduct, products }) {
   if (!open) {
     return (
       <Button onClick={() => setOpen(true)} style={{ marginBottom: 20 }}>
-        <Plus size={16} /> Add New Kit
+        <Plus size={16} /> Add New Item
       </Button>
     );
   }
 
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.gold}`, borderRadius: 10, padding: 20, marginBottom: 24 }}>
-      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: C.white, textTransform: "uppercase", marginBottom: 14 }}>Add New Kit</div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: C.white, textTransform: "uppercase", marginBottom: 14 }}>Add New Item</div>
+
+      <div className="mb-3">
+        <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Item type</div>
+        <div className="flex gap-2 flex-wrap">
+          {VERSION_OPTIONS.map((v) => (
+            <button key={v} onClick={() => {
+              setForm({ ...form, version: v, price: VERSION_DEFAULT_PRICE[v] });
+              const needsSleeve = KIT_VERSIONS.includes(v) || v === "Retro Jersey";
+              setSelectedSleeves(needsSleeve ? [...SLEEVES] : ["Short"]);
+            }} style={{
+              padding: "8px 14px", borderRadius: 6, fontFamily: FONT_BODY, fontSize: 13, fontWeight: 600,
+              border: `1px solid ${form.version === v ? C.gold : C.line}`,
+              background: form.version === v ? "rgba(217,169,78,0.12)" : "transparent",
+              color: form.version === v ? C.gold : C.white, cursor: "pointer",
+            }}>{v}</button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid sm:grid-cols-2 gap-3 mb-3">
         <div>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>Team / club name</div>
-          <input value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} placeholder="e.g. Riverside United"
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 5 }}>
+            {isKitVersion ? "Team / club name" : "Name (optional)"}
+          </div>
+          <input value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })}
+            placeholder={isKitVersion ? "e.g. Riverside United" : "e.g. Kenya (leave blank for a generic item)"}
             style={{ width: "100%", background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "9px 11px", color: C.white, fontFamily: FONT_BODY }} />
         </div>
         <div>
@@ -2135,33 +2173,21 @@ function AddProductForm({ addProduct, products }) {
         </div>
       </div>
 
-      <div className="mb-3">
-        <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Kit</div>
-        <div className="flex gap-2">
-          {KIT_TYPES.map((k) => (
-            <button key={k} onClick={() => setForm({ ...form, kit: k })} style={{
-              padding: "8px 14px", borderRadius: 6, fontFamily: FONT_BODY, fontSize: 13, fontWeight: 600,
-              border: `1px solid ${form.kit === k ? C.gold : C.line}`,
-              background: form.kit === k ? "rgba(217,169,78,0.12)" : "transparent",
-              color: form.kit === k ? C.gold : C.white, cursor: "pointer",
-            }}>{k}</button>
-          ))}
+      {isKitVersion && (
+        <div className="mb-3">
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Kit</div>
+          <div className="flex gap-2">
+            {KIT_TYPES.map((k) => (
+              <button key={k} onClick={() => setForm({ ...form, kit: k })} style={{
+                padding: "8px 14px", borderRadius: 6, fontFamily: FONT_BODY, fontSize: 13, fontWeight: 600,
+                border: `1px solid ${form.kit === k ? C.gold : C.line}`,
+                background: form.kit === k ? "rgba(217,169,78,0.12)" : "transparent",
+                color: form.kit === k ? C.gold : C.white, cursor: "pointer",
+              }}>{k}</button>
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div className="mb-3">
-        <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Version</div>
-        <div className="flex gap-2 flex-wrap">
-          {["Player Version", "Fan Version", "Kids Set"].map((v) => (
-            <button key={v} onClick={() => setForm({ ...form, version: v, price: v === "Player Version" ? 1500 : 1300 })} style={{
-              padding: "8px 14px", borderRadius: 6, fontFamily: FONT_BODY, fontSize: 13, fontWeight: 600,
-              border: `1px solid ${form.version === v ? C.gold : C.line}`,
-              background: form.version === v ? "rgba(217,169,78,0.12)" : "transparent",
-              color: form.version === v ? C.gold : C.white, cursor: "pointer",
-            }}>{v}</button>
-          ))}
-        </div>
-      </div>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
         <div>
@@ -2198,17 +2224,21 @@ function AddProductForm({ addProduct, products }) {
             }}>{size}</button>
           ))}
         </div>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Sleeve options</div>
-        <div className="flex gap-2">
-          {SLEEVES.map((sleeve) => (
-            <button key={sleeve} onClick={() => toggleSleeve(sleeve)} style={{
-              padding: "8px 14px", borderRadius: 6, fontFamily: FONT_BODY, fontWeight: 600, fontSize: 12,
-              border: `1px solid ${selectedSleeves.includes(sleeve) ? C.gold : C.line}`,
-              background: selectedSleeves.includes(sleeve) ? "rgba(217,169,78,0.12)" : "transparent",
-              color: selectedSleeves.includes(sleeve) ? C.gold : C.mute, cursor: "pointer",
-            }}>{sleeve} Sleeve</button>
-          ))}
-        </div>
+        {isKitVersion || form.version === "Retro Jersey" ? (
+          <>
+            <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.mute, marginBottom: 6 }}>Sleeve options</div>
+            <div className="flex gap-2">
+              {SLEEVES.map((sleeve) => (
+                <button key={sleeve} onClick={() => toggleSleeve(sleeve)} style={{
+                  padding: "8px 14px", borderRadius: 6, fontFamily: FONT_BODY, fontWeight: 600, fontSize: 12,
+                  border: `1px solid ${selectedSleeves.includes(sleeve) ? C.gold : C.line}`,
+                  background: selectedSleeves.includes(sleeve) ? "rgba(217,169,78,0.12)" : "transparent",
+                  color: selectedSleeves.includes(sleeve) ? C.gold : C.mute, cursor: "pointer",
+                }}>{sleeve} Sleeve</button>
+              ))}
+            </div>
+          </>
+        ) : null}
         {selectedSizes.length === 0 || selectedSleeves.length === 0 ? (
           <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#ff9088", marginTop: 8 }}>
             Select at least one size and one sleeve option.
@@ -2307,7 +2337,7 @@ function AddProductForm({ addProduct, products }) {
 
       <div className="flex gap-3">
         <Button onClick={handleAdd} disabled={!canSave}>
-          <Check size={16} /> {saving ? "Saving..." : "Save Kit"}
+          <Check size={16} /> {saving ? "Saving..." : "Save Item"}
         </Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </div>

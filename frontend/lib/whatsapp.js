@@ -1,5 +1,7 @@
-// WhatsApp Cloud API (Meta) — used to confirm delivery fee + final total with customers.
-// Falls back to SMS via Africa's Talking if the WhatsApp send fails.
+// Sends order/account notifications — WhatsApp Cloud API (Meta) if configured,
+// otherwise goes straight to SMS via Africa's Talking. Meta is entirely
+// optional: if WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_ACCESS_TOKEN aren't set,
+// this skips WhatsApp and sends SMS directly — no wasted failed API call.
 
 function toE164(phone) {
   const digits = phone.replace(/[^0-9]/g, "");
@@ -8,7 +10,14 @@ function toE164(phone) {
   return digits;
 }
 
+const whatsappConfigured = !!(process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ACCESS_TOKEN);
+
 export async function sendWhatsAppMessage(phone, message) {
+  if (!whatsappConfigured) {
+    await sendSms(phone, message);
+    return;
+  }
+
   const to = toE164(phone);
   const url = `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
@@ -29,9 +38,14 @@ export async function sendWhatsAppMessage(phone, message) {
 }
 
 async function sendSms(phone, message) {
+  if (!process.env.AT_API_KEY || !process.env.AT_USERNAME) {
+    console.error("No messaging channel configured — set WHATSAPP_* or AT_* env vars to actually deliver this:", message);
+    return;
+  }
+
   const to = `+${toE164(phone)}`;
   try {
-    await fetch("https://api.africastalking.com/version1/messaging", {
+    const res = await fetch("https://api.africastalking.com/version1/messaging", {
       method: "POST",
       headers: {
         apiKey: process.env.AT_API_KEY,
@@ -40,7 +54,8 @@ async function sendSms(phone, message) {
       },
       body: new URLSearchParams({ username: process.env.AT_USERNAME, to, message, from: process.env.AT_SENDER_ID || "" }),
     });
+    if (!res.ok) console.error("SMS send failed:", await res.text());
   } catch (err) {
-    console.error("SMS fallback also failed:", err.message);
+    console.error("SMS send failed:", err.message);
   }
 }

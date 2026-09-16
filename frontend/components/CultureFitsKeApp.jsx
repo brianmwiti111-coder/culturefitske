@@ -575,21 +575,29 @@ function Header({ view, setView, cartCount, wishlistCount, user, onLogout, conta
             </button>
           )}
           {contactWhatsappNumber && (
-            <a
-              href={`https://wa.me/${contactWhatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("Hi CultureFitsKe, I have a question:")}`}
-              target="_blank"
-              rel="noreferrer"
-              title="Ask us a question on WhatsApp"
+            <button
+              onClick={async () => {
+                const message = "Hi CultureFitsKe, I have a question:";
+                try {
+                  await navigator.clipboard.writeText(message);
+                } catch {
+                  // Clipboard access can fail (e.g. older browsers, permissions) —
+                  // WhatsApp's own pre-fill via the link below still works either way.
+                }
+                const url = `https://wa.me/${contactWhatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(message)}`;
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+              title="Ask us a question on WhatsApp — message copied, just paste if it's not already there"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 background: "none", border: `1px solid ${C.line}`, borderRadius: 6,
                 color: C.white, fontFamily: FONT_BODY, fontSize: 12, padding: "6px 10px",
-                cursor: "pointer", marginRight: 6, textDecoration: "none",
+                cursor: "pointer", marginRight: 6,
               }}
             >
               <MessageCircle size={14} color={C.gold} />
               <span className="hidden sm:inline">Contact Us</span>
-            </a>
+            </button>
           )}
           <button onClick={() => setView("cart")} style={{ position: "relative", background: "none", border: "none", cursor: "pointer", padding: 8 }}>
             <ShoppingCart size={22} color={C.white} />

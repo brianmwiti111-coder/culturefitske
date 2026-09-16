@@ -661,13 +661,13 @@ function Home({ setView, openProduct, wishlist, toggleWishlist, products, custom
           >
             Wear Your<br /><span style={{ color: C.gold }}>Colours</span>
           </h1>
-          <p style={{ fontFamily: FONT_BODY, color: C.mute, fontSize: 17, maxWidth: 480, margin: "0 auto 30px" }}>
-            Player & fan kits, kids sets, and name-and-number customization —
-            built one order at a time, made just for you.
+          <p style={{ fontFamily: FONT_BODY, color: C.mute, fontSize: 17, maxWidth: 520, margin: "0 auto 30px" }}>
+            Player & fan kits, kids sets, tracksuits, retro jerseys, and name-and-number
+            customization — built one order at a time, made just for you.
           </p>
           <div className="flex gap-3">
             <Button onClick={() => setView("shop")}>Shop the Range</Button>
-            <Button variant="outline" onClick={() => setView("shop")}>Kids Sets</Button>
+            <Button variant="outline" onClick={() => setView("shop")}>Tracksuits</Button>
           </div>
         </div>
         {/* Ambient jersey silhouettes */}
@@ -679,14 +679,17 @@ function Home({ setView, openProduct, wishlist, toggleWishlist, products, custom
         </div>
       </section>
 
-      {/* KIT TYPES */}
+      {/* ITEM TYPES */}
       <section className="max-w-6xl mx-auto px-5 py-16">
-        <SectionLabel eyebrow="Choose your fit" title="Three Kinds of Kit" />
-        <div className="grid md:grid-cols-3 gap-5">
+        <SectionLabel eyebrow="Choose your fit" title="Everything We Stock" />
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-5">
           {[
-            { t: "Player Version", p: "KSh 1,500", d: "Match-spec cut, premium finish." },
-            { t: "Fan Version", p: "KSh 1,300", d: "Everyday comfort, same colours." },
-            { t: "Kids Set", p: "KSh 1,000", d: "Jersey + shorts, sized for juniors." },
+            { t: "Player Version", p: `KSh ${VERSION_DEFAULT_PRICE["Player Version"].toLocaleString()}`, d: "Match-spec cut, premium finish." },
+            { t: "Fan Version", p: `KSh ${VERSION_DEFAULT_PRICE["Fan Version"].toLocaleString()}`, d: "Everyday comfort, same colours." },
+            { t: "Kids Set", p: `KSh ${VERSION_DEFAULT_PRICE["Kids Set"].toLocaleString()}`, d: "Jersey + shorts, sized for juniors." },
+            { t: "Tracksuit", p: `KSh ${VERSION_DEFAULT_PRICE["Tracksuit"].toLocaleString()}`, d: "Kenya and plain styles, full zip-up sets." },
+            { t: "Retro Jersey", p: `KSh ${VERSION_DEFAULT_PRICE["Retro Jersey"].toLocaleString()}`, d: "Classic throwback designs." },
+            { t: "Tracks", p: `KSh ${VERSION_DEFAULT_PRICE["Tracks"].toLocaleString()}`, d: "Track pants, sold on their own." },
           ].map((k) => (
             <div key={k.t} style={{ background: C.bgCard, border: `1px solid ${C.line}`, borderRadius: 10, padding: 24 }}>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: C.white, textTransform: "uppercase" }}>{k.t}</div>

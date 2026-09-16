@@ -60,7 +60,7 @@ const VERSION_OPTIONS = [...KIT_VERSIONS, "Tracksuit", "Retro Jersey", "Tracks"]
 const VERSION_DEFAULT_PRICE = {
   "Player Version": 1500,
   "Fan Version": 1300,
-  "Kids Set": 1300,
+  "Kids Set": 1000,
   "Tracksuit": 2500,
   "Retro Jersey": 2500,
   "Tracks": 800,
